@@ -1,5 +1,8 @@
 # 1 kW Totem-Pole Bridgeless PFC
 
+> [!IMPORTANT]
+> The component libraries used by the PLECS and LTspice models are not included in this repository. Get them from [Gueni/0000_libraries](https://github.com/Gueni/0000_libraries) before opening or running the simulations.
+
 Design and simulation of a single-phase, **non-interleaved** totem-pole bridgeless PFC (TPB PFC) rated at 1 kW: one fast leg switching at PWM frequency (HS1/LS1, GaN or SiC) and one slow leg switching at line frequency (HS2/LS2, Si).
 
 The power stage and control are developed in PLECS first, then ported to LTspice.
