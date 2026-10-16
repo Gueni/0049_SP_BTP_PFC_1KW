@@ -17,7 +17,10 @@
 #? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
+import Model_Parameters as mdl
 import copy
+import csv
+import itertools
 import xmlrpc.client
 import subprocess
 import shutil
@@ -151,5 +154,36 @@ class simpy:
                 file_path = os.path.join(folder_path, file_name)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
+
+#?----------------------------------------------------------------------------------------------------------------------------------------
+def set_nested(d, path, value):
+    for key in path[:-1]:
+        d                      = d[key]
+    d[path[-1]]                = value
+
+def build_points(base, sweep, sweep_paths, run_id):
+    """One deep-copied ModelVars per combination of the sweep values, with derived parameters and output files updated."""
+    points                     = []
+    for sim_idx, values in enumerate(itertools.product(*sweep.values()), start=1):
+        label                  = dict(zip(sweep, values))
+        mv                     = copy.deepcopy(base)
+        for name, value in label.items():
+            for path in sweep_paths[name]:
+                set_nested(mv, path, value)
+        mdl.update_derived(mv)
+        mdl.set_output_files(mv, run_id, sim_idx)
+        points.append((label, mv))
+    return points
+
+def write_sweep_table(points, sweep, run_id):
+    """CSV index of the sweep: sim_idx -> swept values -> output files."""
+    table_file                 = (mdl.ToFile_path / f"Sweep_{run_id}.csv").as_posix()
+    with open(table_file, 'w', newline='') as f:
+        writer                 = csv.writer(f)
+        writer.writerow(['sim_idx', *sweep, 'ToFile_path', 'output_html', 'logfile'])
+        for label, mv in points:
+            tofile             = mv['ToFile']
+            writer.writerow([tofile['sim_idx'], *label.values(), tofile['ToFile_path'], tofile['output_html'], tofile['logfile']])
+    return table_file
 
 #?----------------------------------------------------------------------------------------------------------------------------------------

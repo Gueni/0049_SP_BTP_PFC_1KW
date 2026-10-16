@@ -34,7 +34,7 @@ Lib/
   Model_Parameters.py  Model paths, simulation settings and component parameters
   plecs.py             PLECS XML-RPC interface
   pmath.py             Signal math and HTML reports
-  RES/                 Sweep outputs: CSV, HTML, logs, traces (git-ignored)
+RES/                   Sweep outputs: CSV, HTML, logs, traces (git-ignored)
 ```
 
 ## Workflow
