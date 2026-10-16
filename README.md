@@ -19,23 +19,22 @@ The power stage and control are developed in PLECS first, then ported to LTspice
 | Output voltage ripple | 5 % p-p (2·f_line) |
 | Hold-up | 10 ms down to 300 V |
 
-These are starting values. Edit them in [plecs/tpbpfc_init.m](plecs/tpbpfc_init.m); the inductor, output capacitor and first-cut PI gains are derived from them.
+These are starting values. Edit them in [Model/tpbpfc_init.m](Model/tpbpfc_init.m); the inductor, output capacitor and first-cut PI gains are derived from them.
 
 ## Repository layout
 
 ```
 doc/
   literature/          Reference papers and app notes
-  design/              Design notes, calculations, loss estimates
-plecs/
-  tpbpfc.plecs         PLECS model (power stage + control)
+Model/
+  PFC.plecs            PLECS model (power stage + control)
   tpbpfc_init.m        Model initialization: specs, filter, power stage, control
-  results/             Exported waveforms / scope data (git-ignored)
-ltspice/
-  tpbpfc.asc           LTspice schematic
-  tpbpfc_params.inc    Parameters, mirror of tpbpfc_init.m
-  models/              Vendor device models (.lib, .asy)
-  results/             Simulation outputs (git-ignored)
+Lib/
+  PFC Sweep.py         Parameter sweep driver (sequential or parallel PLECS runs)
+  Model_Parameters.py  Model paths, simulation settings and component parameters
+  plecs.py             PLECS XML-RPC interface
+  pmath.py             Signal math and HTML reports
+  RES/                 Sweep outputs: CSV, HTML, logs, traces (git-ignored)
 ```
 
 ## Workflow

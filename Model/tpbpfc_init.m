@@ -1,11 +1,24 @@
-% =========================================================================
-% 1 kW Totem-Pole Bridgeless PFC (single leg, non-interleaved)
-% PLECS model initialization script
+% -------------------------------------------------------------------------------
+%            __________  ____  ____  ____________   ____      _ __
+%           /_  __/ __ \/ __ )/ __ \/ ____/ ____/  /  _/___  (_) /_
+%            / / / /_/ / __  / /_/ / /_  / /       / // __ \/ / __/
+%           / / / ____/ /_/ / ____/ __/ / /___   _/ // / / / / /_
+%          /_/ /_/   /_____/_/   /_/    \____/  /___/_/ /_/_/\__/
 %
-% Paste into (or call from) the PLECS model initialization commands:
-%   Simulation > Simulation Parameters > Initialization
-% Octave/MATLAB compatible. All values are SI units.
-% =========================================================================
+%
+% Name:        tpbpfc_init.m
+% Purpose:     1 kW Totem-Pole Bridgeless PFC (single leg, non-interleaved)
+%              PLECS model initialization script.
+%              Paste into (or call from) the PLECS model initialization commands:
+%                Simulation > Simulation Parameters > Initialization
+%              Octave/MATLAB compatible. All values are SI units.
+%
+% Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
+%
+% Created:     10/16/2026
+% Licence:     Refer to the LICENSE file
+% -------------------------------------------------------------------------------
+% -------------------------------------------------------------------------------
 
 %% ---------------------------- Specifications ----------------------------
 Spec.Po        = 1000;          % Rated output power [W]
@@ -34,7 +47,7 @@ Filter.Lcm    = 5e-3;           % Common-mode choke inductance [H]
 Filter.Llk    = 20e-6;          % CMC leakage (differential-mode) [H]
 
 %% --------------------------- Power stage --------------------------------
-PS.fsw   = 65e3;                % Switching frequency (fast leg) [Hz]
+PS.fsw   = 80e3;                % Switching frequency (fast leg) [Hz]
 PS.Tsw   = 1/PS.fsw;
 PS.t_dead = 100e-9;             % Fast-leg dead time [s]
 
