@@ -17,14 +17,15 @@
 #? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
-import Model_Parameters as mdl
 import copy
-import csv
 import itertools
+import math
 import xmlrpc.client
 import subprocess
 import shutil
 import os
+
+import Model_Parameters     as  mdl
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class simpy:
     
@@ -98,13 +99,37 @@ class simpy:
     def load_model(self):
         self.server.plecs.load(self.path)
     
+    def get_scopes(self,modelname,only=None):
+        """
+        Full PLECS paths ('PFC/Scopes/grid_scope', ...) of every Scope block in the model, found by walking the
+        nested Component/Schematic blocks of the .plecs file, so scopes added/renamed in the model are picked up automatically.
+        only : optional list of scope names to keep (None = all scopes, [] = none).
+        Scopes inside library references are not stored in the model file and are not found.
+        """
+        stack, scopes          = [], []                                         # stack: one [is_component, Type, Name] per open block
+        with open(self.path, encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                s              = line.strip()
+                if s.endswith('{') and s[:-1].strip().isidentifier():
+                    stack.append([s[:-1].strip() == 'Component', None, None])
+                elif s == '}' and stack:
+                    is_comp, kind, name = stack.pop()
+                    if is_comp and kind == 'Scope':
+                        parents = [b[2] for b in stack if b[0] and b[2]]
+                        scopes.append('/'.join([modelname] + [n.replace('/', '//') for n in parents + [name]]))
+                elif stack and stack[-1][0] and (s.startswith('Type ') or s.startswith('Name ')):
+                    key, value = s.split(None, 1)
+                    stack[-1][1 if key == 'Type' else 2] = value.strip().strip('"')
+        if only is not None:
+            scopes             = [p for p in scopes if p.split('/')[-1] in only]
+        return scopes
+
     def ClearAllTraces(self,scopelist):
         for val in scopelist:
             self.server.plecs.scope(val,'ClearTraces')
 
     def Set_sim_param(self,mdlvars):
         self.modelvar = mdlvars
-        # self.opts =  {'ModelVars' :  self.modelvar} 
         self.opts     = self.return_opts(self.parasim , self.paranum)
     
     def set_analysis_param(self,analysisvars):
@@ -175,15 +200,34 @@ def build_points(base, sweep, sweep_paths, run_id):
         points.append((label, mv))
     return points
 
-def write_sweep_table(points, sweep, run_id):
-    """CSV index of the sweep: sim_idx -> swept values -> output files."""
-    table_file                 = (mdl.ToFile_path / f"Sweep_{run_id}.csv").as_posix()
-    with open(table_file, 'w', newline='') as f:
-        writer                 = csv.writer(f)
-        writer.writerow(['sim_idx', *sweep, 'ToFile_path', 'output_html', 'logfile'])
-        for label, mv in points:
-            tofile             = mv['ToFile']
-            writer.writerow([tofile['sim_idx'], *label.values(), tofile['ToFile_path'], tofile['output_html'], tofile['logfile']])
-    return table_file
+def _flat(d, keys=()):
+    for key, value in d.items():
+        if isinstance(value, dict):
+            yield from _flat(value, keys + (key,))
+        else:
+            yield keys + (key,), value
+
+def _differs(a, b):
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return not math.isclose(a, b, rel_tol=1e-9)
+    return a != b
+
+def write_sweep_log(points, base, run_id):
+    """One log file per sweep: the base parameters once, then one section per iteration with only the parameters
+    that differ from the base (swept values and the derived parameters they change)."""
+    log_file                   = points[0][1]['ToFile']['logfile']
+    base_flat                  = dict(_flat(base))
+    fmt                        = lambda keys: "[" + "][".join(keys) + "]"
+    lines                      = [f"Sweep {run_id}: {len(points)} iterations", "=" * 99, "BASE PARAMETERS", "-" * 99]
+    lines                     += ["{:<40}= {}".format(fmt(k), v) for k, v in base_flat.items() if k[0] != 'ToFile']
+    for label, mv in points:
+        swept                  = ", ".join(f"{k}={v:g}" if isinstance(v, (int, float)) else f"{k}={v}" for k, v in label.items())
+        lines                 += ["=" * 99, f"ITERATION {mv['ToFile']['sim_idx']}/{len(points)} : {swept}",
+                                  f"results : {mv['ToFile']['ToFile_path']}", "-" * 99]
+        lines                 += ["{:<40}= {:<24} (base: {})".format(fmt(k), str(v), base_flat.get(k))
+                                  for k, v in _flat(mv) if k[0] != 'ToFile' and _differs(v, base_flat.get(k))]
+    with open(log_file, 'w') as f:
+        f.write("\n".join(lines) + "\n")
+    return log_file
 
 #?----------------------------------------------------------------------------------------------------------------------------------------
