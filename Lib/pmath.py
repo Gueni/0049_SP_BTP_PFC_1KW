@@ -41,12 +41,6 @@ class PMath:
         return amplitude, phase, f
 
     @staticmethod
-    def harmonic_window(t, f_base, n_cycles):
-        """Length [s] of the last whole f_base cycles of t (up to n_cycles), None if less than one cycle is saved."""
-        cycles              = min(n_cycles, int((t[-1] - t[0]) * f_base + 1e-9))
-        return cycles / f_base if cycles >= 1 else None
-
-    @staticmethod
     def compute_harmonics(t, y, f0, n_harmonics, window):
         """Amplitudes of harmonic orders 1..n_harmonics of f0 in the signal y(t), over its last `window` seconds
         resampled uniformly (fine enough for the highest order). Harmonic k is read at bin k*f0*window, exact when the
@@ -76,6 +70,77 @@ class PMath:
         """RMS value of a signal over time_values."""
         return np.sqrt(PMath._time_mean(np.square(signal, dtype=float), time_values))
 
+    #?------------------------------------------------------------------------------------------------------------------------------------
+    #? Batch metrics: every column of Y (one column per waveform) over the last `window` seconds of t (None = all of t)
+    #?------------------------------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def analysis_window(t, f_base, n_cycles=None):
+        """Length [s] of the last whole f_base cycles of t (all of them, or up to n_cycles); None if f_base is None or
+        less than one cycle is saved (the metrics then use the whole of t)."""
+        if not f_base:
+            return None
+        cycles              = int((t[-1] - t[0]) * f_base + 1e-9)
+        cycles              = min(cycles, n_cycles) if n_cycles else cycles
+        return cycles / f_base if cycles >= 1 else None
+
+    @staticmethod
+    def _windowed(t, Y, window=None):
+        """t and Y restricted to the last `window` seconds, with a sample interpolated exactly at the window start."""
+        t                   = np.asarray(t, dtype=float)
+        Y                   = np.asarray(Y, dtype=float).reshape(len(t), -1)
+        if not window or window >= t[-1] - t[0]:
+            return t, Y
+        t0                  = t[-1] - window
+        i                   = int(np.searchsorted(t, t0, side='right'))
+        y0                  = np.array([np.interp(t0, t, Y[:, k]) for k in range(Y.shape[1])])
+        return np.concatenate(([t0], t[i:])), np.vstack((y0, Y[i:]))
+
+    @staticmethod
+    def rms(t, Y, window=None):
+        """Time-weighted RMS of each column (variable-step samples, trapezoidal integration)."""
+        t, Y                = PMath._windowed(t, Y, window)
+        return np.sqrt(np.trapezoid(Y**2, x=t, axis=0) / (t[-1] - t[0]))
+
+    @staticmethod
+    def average(t, Y, window=None):
+        """Time-weighted average of each column."""
+        t, Y                = PMath._windowed(t, Y, window)
+        return np.trapezoid(Y, x=t, axis=0) / (t[-1] - t[0])
+
+    @staticmethod
+    def maximum(t, Y, window=None):
+        return PMath._windowed(t, Y, window)[1].max(axis=0)
+
+    @staticmethod
+    def minimum(t, Y, window=None):
+        return PMath._windowed(t, Y, window)[1].min(axis=0)
+
+    @staticmethod
+    def peak_to_peak(t, Y, window=None):
+        Yw                  = PMath._windowed(t, Y, window)[1]
+        return Yw.max(axis=0) - Yw.min(axis=0)
+
+    @staticmethod
+    def peak(t, Y, window=None):
+        """Largest absolute value of each column."""
+        return np.abs(PMath._windowed(t, Y, window)[1]).max(axis=0)
+
+    @staticmethod
+    def harmonics(t, Y, f0s, n_harmonics, window):
+        """Harmonic amplitudes of each column for its own fundamental f0s[k] (None = not computed).
+        Returns (orders, H) with H[k] = amplitudes of orders 1..n_harmonics of column k, NaN where f0s[k] is None."""
+        orders              = np.arange(1, n_harmonics + 1)
+        H                   = np.full((Y.shape[1], n_harmonics), np.nan)
+        for k, f0 in enumerate(f0s):
+            if f0 and window:
+                H[k]        = PMath.compute_harmonics(t, Y[:, k], f0, n_harmonics, window)[1]
+        return orders, H
+
+    @staticmethod
+    def calc_metrics(t, Y, window=None):
+        """Every scalar metric of PMath.METRICS for each column of Y: {type: array of one value per column}."""
+        return {name: func(t, Y, window) for name, func in PMath.METRICS.items()}
+
     @staticmethod
     def envelope(x, Y, n_buckets, log=False):
         """Min/max envelope of the columns of Y over n_buckets equal-width (or log-width) bins of the sorted x.
@@ -88,4 +153,16 @@ class PMath:
         Y_env[0::2]         = np.minimum.reduceat(Y, idx, axis=0)
         Y_env[1::2]         = np.maximum.reduceat(Y, idx, axis=0)
         return np.repeat(x[idx], 2), Y_env
+#?----------------------------------------------------------------------------------------------------------------------------------------
+#? Scalar metrics computed for every waveform: result type (also the name of its result folder / HTML report) -> function.
+#? The harmonics are the additional 'FFT' type (PMath.harmonics), computed per waveform with its own fundamental.
+PMath.METRICS               = {
+                                'RMS'        : PMath.rms,
+                                'Average'    : PMath.average,
+                                'PeakToPeak' : PMath.peak_to_peak,
+                                'Max'        : PMath.maximum,
+                                'Min'        : PMath.minimum,
+                                'Peak'       : PMath.peak,
+                              }
+PMath.RESULT_TYPES          = list(PMath.METRICS) + ['FFT']
 #?----------------------------------------------------------------------------------------------------------------------------------------

@@ -35,14 +35,14 @@ from    pathlib                     import  Path
 from    plotly.subplots             import  make_subplots
 from    PIL                         import  Image
 from    pmath                       import  PMath
-from    pplecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, get_nested
+from    pplecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, Sweep
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class PPlots:
     """HTML reports of simulation results."""
 
     PLOT_BUCKETS        = 2500                                                         # time-domain min/max bins per trace
     N_HARMONICS         = 50                                                           # harmonic orders shown in the harmonic bar plots
-    HARMONIC_CYCLES     = 5                                                            # last fundamental cycles used for the harmonic analysis
+    ANALYSIS_CYCLES     = 5                                                            # last whole fundamental cycles used for the metrics and harmonics (None = all)
     UNIT_KEYWORDS       = {                                                            # waveform name keyword -> unit (first match wins)
                             'voltage'       : '[ V ]',
                             'current'       : '[ A ]',
@@ -115,6 +115,20 @@ class PPlots:
         return found
 
     @staticmethod
+    def find_note(notes, name):
+        """(unit, comment) of a parameter: exact path first, else the documented path sharing the longest ending
+        (a struct copied from another dict, e.g. PFC.SW.Rgon <- Switches.GS66508.Rgon). ('', '') if none."""
+        if name in notes:
+            return notes[name]
+        parts               = name.split('.')
+        for k in range(1, len(parts)):
+            tail            = '.' + '.'.join(parts[k:])
+            match           = next((v for key, v in notes.items() if key.endswith(tail)), None)
+            if match:
+                return match
+        return ('', '')
+
+    @staticmethod
     def _params_table(columns):
         """Plotly table with one header per key of columns and its values as cells."""
         return go.Figure(data=[go.Table(
@@ -166,26 +180,34 @@ class PPlots:
 
     @staticmethod
     def _load_run(resFile, n, f0s=None):
-        """Time-domain envelopes and harmonic amplitudes of the n waveforms of one result CSV (None if missing).
-        f0s: fundamental of each waveform (None = no harmonics for it). The analysis window is the last whole cycles
-        of the lowest fundamental, so every fundamental of the run is analysed over the same span."""
+        """Load one time-series CSV once and compute everything the reports need (None if the file is missing):
+        't', 'Y': time-domain min/max envelopes; 'metrics': PMath.calc_metrics per waveform; 'harmonics': (orders, H);
+        'window': analysis window [s]. The window is the last ANALYSIS_CYCLES whole cycles of the lowest fundamental
+        (whole file without fundamental), shared by the metrics and the harmonics of the run."""
         if not os.path.isfile(resFile):
             print(f"WARNING: result CSV not found, skipped in the HTML report: {resFile}. "
                   f"The model has no 'To File' block writing to {OUTPUT_KEY}.ToFile_path.")
             return None
-        data                = pd.read_csv(resFile, header=None, usecols=range(n + 1), dtype=float).to_numpy()
+        try:
+            data            = pd.read_csv(resFile, header=None, usecols=range(n + 1), dtype=float).to_numpy()
+        except (pd.errors.EmptyDataError, ValueError) as err:
+            print(f"WARNING: result CSV empty or unreadable, skipped in the reports: {resFile} ({err})")
+            return None
+        if len(data) < 2:
+            print(f"WARNING: result CSV has less than 2 samples, skipped in the reports: {resFile}")
+            return None
         t, Y                = data[:, 0], data[:, 1:]
-        t_env, Y_env        = PMath.envelope(t, Y, PPlots.PLOT_BUCKETS)
         f0s                 = f0s or [None] * n
-        harmonics           = [None] * n
         f_base              = min((f for f in f0s if f), default=None)
-        window              = PMath.harmonic_window(t, f_base, PPlots.HARMONIC_CYCLES) if f_base else None
+        window              = PMath.analysis_window(t, f_base, PPlots.ANALYSIS_CYCLES)
         if f_base and window is None:
-            print(f"WARNING: less than one {PPlots.format_hz(f_base)} cycle saved in {resFile}, no harmonic plots for it.")
-        if window:
-            harmonics       = [PMath.compute_harmonics(t, Y[:, k], f0, PPlots.N_HARMONICS, window) if f0 else None
-                               for k, f0 in enumerate(f0s)]
-        return t_env, Y_env, harmonics
+            print(f"WARNING: less than one {PPlots.format_hz(f_base)} cycle saved in {resFile}: metrics over the whole file, no harmonics.")
+        t_env, Y_env        = PMath.envelope(t, Y, PPlots.PLOT_BUCKETS)
+        return {'t'         : t_env,
+                'Y'         : Y_env,
+                'metrics'   : PMath.calc_metrics(t, Y, window),
+                'harmonics' : PMath.harmonics(t, Y, f0s, PPlots.N_HARMONICS, window),
+                'window'    : window if window else t[-1] - t[0]}
 
     @staticmethod
     def _run_name(label, mv, varied):
@@ -194,55 +216,128 @@ class PPlots:
         return f"#{mv[OUTPUT_KEY]['sim_idx']} " + ", ".join(f"{k}={fmt(label[k])}" for k in varied)
 
     @staticmethod
+    def _style(fig, height=450):
+        fig.update_layout(plot_bgcolor='#e9f5f9', height=height, showlegend=True)
+        return fig
+
+    @staticmethod
+    def _write_metric(kind, runs, waveforms, units, labels, out):
+        """mat/<kind>_<run>.csv: one row per sweep point (sim_idx + swept values), one column per waveform."""
+        values              = np.array([r['metrics'][kind] for r in runs])                     # [point][waveform]
+        sweep_cols          = {k: [lab[k] for lab in labels] for k in labels[0]}
+        table               = pd.DataFrame({'sim_idx': [r['sim_idx'] for r in runs], **sweep_cols,
+                                            **{f"{w} {u}": values[:, k] for k, (w, u) in enumerate(zip(waveforms, units))}})
+        csv_file            = Path(out['Mat']) / f"{kind}_{out['utc_numeric']}.csv"
+        table.to_csv(csv_file, index=False, encoding='utf-8-sig')
+        return csv_file
+
+    @staticmethod
+    def _write_fft(runs, waveforms, units, labels, f0s, out):
+        """mat/FFT_<run>.csv: one row per sweep point and waveform (with a fundamental): f0_Hz, H1..HN."""
+        rows                = []
+        for r, lab in zip(runs, labels):
+            orders, H       = r['harmonics']
+            for k, wave in enumerate(waveforms):
+                f0          = f0s[r['index']][k]
+                if f0:
+                    rows.append({'sim_idx': r['sim_idx'], **lab, 'waveform': wave, 'unit': units[k], 'f0_Hz': f0,
+                                 **{f"H{o}": H[k, j] for j, o in enumerate(orders)}})
+        csv_file            = Path(out['Mat']) / f"FFT_{out['utc_numeric']}.csv"
+        pd.DataFrame(rows).to_csv(csv_file, index=False, encoding='utf-8-sig')
+        return csv_file
+
+    @staticmethod
+    def _harmonics_fig(k, wave, unit, runs, f0s, f0_paths, window_text):
+        """Harmonic bar plot of waveform k, every sweep point side by side (None if the waveform has no fundamental)."""
+        fig                 = go.Figure()
+        for r in runs:
+            orders, H       = r['harmonics']
+            if not np.isnan(H[k]).all():
+                fig.add_trace(go.Bar(x=orders, y=H[k], name=r['name'], marker_color=r['color']))
+        if not fig.data:
+            return None
+        f0_text             = " / ".join(PPlots.format_hz(f) for f in sorted({run_f0s[k] for run_f0s in f0s if run_f0s[k]}))
+        fig.update_layout(title=f"{wave} - Harmonics (f0: {'.'.join(map(str, f0_paths[k]))} = {f0_text}, {window_text})",
+                          xaxis_title="Harmonic order", yaxis_title=f"Amplitude {unit}", barmode='group', bargap=0.15)
+        fig.update_xaxes(tickmode='linear', tick0=1, dtick=1)
+        return PPlots._style(fig)
+
+    @staticmethod
+    def _metrics_table(runs, waveforms, units, window_text):
+        """Table of the calculated results: one row per waveform and sweep point, one column per type of PMath.METRICS."""
+        fmt                 = lambda v: f"{v:.6g}"
+        rows                = [(wave, unit, r['name'], [fmt(r['metrics'][kind][k]) for kind in PMath.METRICS])
+                               for k, (wave, unit) in enumerate(zip(waveforms, units)) for r in runs]
+        columns             = {"WAVEFORM": [w for w, _, _, _ in rows], "UNIT": [u for _, u, _, _ in rows],
+                               "SWEEP POINT": [p for _, _, p, _ in rows]}
+        columns.update({kind.upper(): [v[j] for _, _, _, v in rows] for j, kind in enumerate(PMath.METRICS)})
+        fig                 = PPlots._params_table(columns)
+        fig.update_layout(title=f"Calculated results ({window_text})", height=min(1200, 26 * len(rows) + 160))
+        return fig
+
+    @staticmethod
     def gen_sweep_plots(points, waveforms, units=None, f0_path=None, f0_overrides=None, model_name='', img_path=None, params_file=None, OPEN=False):
-        """One HTML report for the whole sweep, written to ModelVars[OUTPUT_KEY]['output_html']: for each waveform a
-        time-domain figure then its harmonic bar plot, every sweep point overlaid (one colour + legend entry per point),
-        then a parameter table (one column per point).
+        """Reports of a whole sweep. Every time-series CSV is loaded once, then:
+            - html/Html_<run>.html : for each waveform its time-domain figure then its harmonic bar plot (every sweep
+                                     point overlaid, x axis = harmonic order, f0 in the title), then the table of the
+                                     calculated results (RMS, Average, PeakToPeak, Max, Min, Peak per waveform and point)
+                                     and the parameter table;
+            - mat/<type>_<run>.csv : one matrix per scalar metric of PMath.METRICS (rows: sweep points, columns: waveforms);
+            - mat/FFT_<run>.csv    : harmonic amplitudes per sweep point and waveform.
+        Metrics and harmonics use the last ANALYSIS_CYCLES whole cycles of the lowest fundamental of the run.
 
         *Args:
-            points      : list of (label, ModelVars) as built by pplecs.build_points.
-            waveforms   : names of the result CSV columns after time, in order.
-            units       : unit of each waveform; None = guessed from the names (units_from_names).
-            f0_path     : key path of the fundamental frequency in ModelVars, e.g. ('Grid', 'f'); None = no harmonic plots.
+            points      : list of (label, ModelVars) as built by pplecs.Sweep.build_points.
+            waveforms   : the result CSV columns after time, in order: {name: unit}, or a list of names.
+            units       : unit of each waveform; None = the units of the waveforms dict, or guessed from the names (units_from_names).
+            f0_path     : key path of the fundamental frequency in ModelVars, e.g. ('Grid', 'f'); None = no harmonics,
+                          metrics over the whole saved window.
             f0_overrides: {waveform name keyword: key path} for waveforms with their own fundamental, e.g. {'HS1': ('CTRL', 'fsw')}.
             model_name  : used in the page title.
             img_path    : image shown on top of the report (optional).
             params_file : file whose '#?' comments give the unit/comment columns of the parameter table (optional).
+        Returns the list of calculated CSV files.
         """
+        if isinstance(waveforms, dict):                                                    # {name: unit}
+            units           = units or list(waveforms.values())
+            waveforms       = list(waveforms)
         n                   = len(waveforms)
         units               = units or PPlots.units_from_names(waveforms)
-        labels              = [label for label, _ in points]
-        varied              = [k for k in labels[0] if len({str(l[k]) for l in labels}) > 1] or list(labels[0])
+        labels_all          = [label for label, _ in points]
+        varied              = [k for k in labels_all[0] if len({str(l[k]) for l in labels_all}) > 1] or list(labels_all[0])
         colors              = pc.qualitative.Dark24
         f0_paths            = PPlots.waveform_f0_paths(waveforms, f0_path, f0_overrides)
-        f0s                 = [[get_nested(mv, p) if p else None for p in f0_paths] for _, mv in points]   # [run][waveform]
-        runs                = []
+        f0s                 = [[Sweep.get_nested(mv, p) if p else None for p in f0_paths] for _, mv in points]   # [point][waveform]
+        runs, labels        = [], []
         for i, ((label, mv), run_f0s) in enumerate(zip(points, f0s)):
             res             = PPlots._load_run(mv[OUTPUT_KEY]['ToFile_path'], n, run_f0s)
             if res is not None:
-                runs.append((PPlots._run_name(label, mv, varied), colors[i % len(colors)], res))
+                res.update(name=PPlots._run_name(label, mv, varied), color=colors[i % len(colors)],
+                           sim_idx=mv[OUTPUT_KEY]['sim_idx'], index=i)
+                runs.append(res)
+                labels.append(label)
         if not runs:
             print("WARNING: no result CSV found, HTML report not written.")
-            return
+            return []
+        out                 = points[0][1][OUTPUT_KEY]
+        f_base              = min((f for row in f0s for f in row if f), default=None)
+        window              = runs[0]['window']
+        window_text         = (f"last {window:.4g} s = {window * f_base:.0f} cycles of {PPlots.format_hz(f_base)}"
+                               if f_base else f"whole saved window, {window:.4g} s")
+        #? figures: time domain then harmonics, waveform after waveform
         figures             = []
         for k, (wave, unit) in enumerate(zip(waveforms, units)):
-            fig_t           = go.Figure()
-            fig_h           = go.Figure()
-            for name, color, (t, Y, harmonics) in runs:
-                fig_t.add_trace(go.Scatter(x=t, y=Y[:, k], mode='lines', name=name, line=dict(color=color, width=1)))
-                if harmonics[k] is not None:
-                    orders, H = harmonics[k]
-                    fig_h.add_trace(go.Bar(x=orders, y=H, name=name, marker_color=color))
-            f0_text         = " / ".join(PPlots.format_hz(f) for f in sorted({run_f0s[k] for run_f0s in f0s if run_f0s[k]}))
-            f0_name         = f"{'.'.join(map(str, f0_paths[k]))} = {f0_text}" if f0_paths[k] else ''
-            fig_t.update_layout(title=wave, xaxis_title="Time [s]", yaxis_title=unit)
-            fig_h.update_layout(title=f"{wave} - Harmonics (f0: {f0_name})", xaxis_title="Harmonic order",
-                                yaxis_title=f"Amplitude {unit}", barmode='group', bargap=0.15)
-            fig_h.update_xaxes(tickmode='linear', tick0=1, dtick=1)
-            wave_figs       = [fig_t] + ([fig_h] if fig_h.data else [])
-            for fig in wave_figs:
-                fig.update_layout(plot_bgcolor='#e9f5f9', height=450, showlegend=True)
-            figures        += wave_figs
+            fig             = go.Figure()
+            for r in runs:
+                fig.add_trace(go.Scatter(x=r['t'], y=r['Y'][:, k], mode='lines', name=r['name'], line=dict(color=r['color'], width=1)))
+            fig.update_layout(title=wave, xaxis_title="Time [s]", yaxis_title=unit)
+            figures.append(PPlots._style(fig))
+            fig_h           = PPlots._harmonics_fig(k, wave, unit, runs, f0s, f0_paths, window_text)
+            if fig_h is not None:
+                figures.append(fig_h)
+        #? calculated results table
+        figures.append(PPlots._metrics_table(runs, waveforms, units, window_text))
+        #? parameter table
         shown               = lambda mv: {k: (v if k != OUTPUT_KEY else {kk: vv for kk, vv in v.items() if kk not in OUTPUT_FIELDS})
                                           for k, v in mv.items()}
         params              = [PPlots.flatten_dict(shown(mv)) for _, mv in points]
@@ -252,14 +347,18 @@ class PPlots:
         columns             = {"PARAMETERS": names}
         if params_file:
             notes           = PPlots.extract_comments(params_file)
-            columns.update({"UNITS": [notes.get(name, ('', ''))[0] for name in names],
-                            "COMMENTS": [notes.get(name, ('', ''))[1] for name in names]})
+            found           = [PPlots.find_note(notes, name) for name in names]
+            columns.update({"UNITS": [u for u, _ in found], "COMMENTS": [c for _, c in found]})
         columns["VALUE"]    = values
         table_fig           = PPlots._params_table(columns)
         table_fig.update_layout(height=900)
-        out                 = points[0][1][OUTPUT_KEY]
         title               = f"{model_name}_{out['utc_numeric']}_SWEEP_MOHAMED_GUENI"
         PPlots.write_html(out['output_html'], title, figures + [table_fig], PPlots.png_to_hex_base64(img_path), OPEN)
+        #? calculated results: one matrix CSV per type
+        csv_files           = [PPlots._write_metric(kind, runs, waveforms, units, labels, out) for kind in PMath.METRICS]
+        if f0_path or f0_overrides:
+            csv_files.append(PPlots._write_fft(runs, waveforms, units, labels, f0s, out))
+        return csv_files
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? AC analysis report

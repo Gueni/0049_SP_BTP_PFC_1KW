@@ -67,7 +67,7 @@ class PLog:
     def write_sweep_log(points, base, run_id):
         """One log file per sweep: the base parameters once, then one section per iteration with only the parameters
         that differ from the base (swept values and the derived parameters they change).
-        points: list of (label, ModelVars) as built by pplecs.build_points; the file is ModelVars[OUTPUT_KEY]['logfile']."""
+        points: list of (label, ModelVars) as built by pplecs.Sweep.build_points; the file is ModelVars[OUTPUT_KEY]['logfile']."""
         log_file            = points[0][1][OUTPUT_KEY]['logfile']
         base_flat           = dict(PLog.flat(base))
         lines               = [f"Sweep {run_id}: {len(points)} iterations", "=" * PLog.WIDTH, "BASE PARAMETERS", "-" * PLog.WIDTH]

@@ -53,7 +53,7 @@ Plecs {
   ScriptsDialogGeometry ""
   ScriptsDialogSplitterPos "0"
   Schematic {
-    Location      [0, 24; 1536, 774]
+    Location      [0, 23; 1536, 773]
     ZoomFactor    1.30957
     SliderPosition [0, 0]
     ShowBrowser   off
@@ -2384,7 +2384,7 @@ Plecs {
               AutoScale     1
               MinValue      0
               MaxValue      1
-              Signals       {"IL"}
+              Signals       {}
               Untangle      0
               KeepBaseline  off
               BaselineValue 0
@@ -6511,7 +6511,7 @@ Plecs {
       }
       Parameter {
         Variable      "Configuration"
-        Value         "1"
+        Value         "PFC.Config"
         Show          off
       }
       Terminal {
@@ -15104,4 +15104,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "WexP4ktn1HkadYsVvzV/nZ1Hy/UsBXt42gmodsdEK4I="
+DemoSignature "7wb0qJHAOojl6uBKWPCLEuj4x43TfkNqCbqztkqP7Co="

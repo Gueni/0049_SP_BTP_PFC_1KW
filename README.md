@@ -131,7 +131,7 @@ The controller uses average current mode control in the `PFC CTRL` → `TPB PFC`
 | Current | fc_i = fsw / 10 = 8 kHz | 2π · fc_i · L_boost = 12.47 V/A | (2π · fc_i)² / 10 · L_boost = 62.7 kV/(A·s) |
 | Voltage | fc_v = 10 Hz | 2π · fc_v · C_out · Vref = 12.06 W/V | (2π · fc_v)² / 2 · C_out · Vref = 379 W/(V·s) |
 
-The gains are recomputed by `update_derived()` in `parameters.py` whenever a sweep changes L, C, fsw or Vref.
+The gains are recomputed by `Derived.update()` in `derived.py` whenever a sweep changes L, C, fsw or Vref.
 
 ## Simulation
 
@@ -157,12 +157,31 @@ python Lib/sweep.py
 | `CODEGEN` | Generate code with PLECS Coder (`CODEGEN_TARGET` = subsystem with code generation enabled) |
 | `RTBOX` | Upload and run the generated code on the RT Box at `RTBOX_URL` |
 
-A sweep writes these outputs to `RES/` (git-ignored):
+A sweep writes these outputs to `data/` (git-ignored):
 
-- `CSV/Results_<run>_<n>.csv`: waveforms of each sweep point (`Waveforms` in `parameters.py`).
-- `html/Html_<run>.html`: one report for the whole sweep. It shows each waveform in the time domain with every point overlaid, and a harmonic bar plot. The x-axis is the harmonic order, and the title shows the fundamental used: `Grid.f` = 50 Hz by default, `CTRL.fsw` = 80 kHz for the fast-leg signals (`F0_OVERRIDES`). A parameter table at the end gives units, comments and values; a swept value is shown as `a / b / c`.
-- `Log/Log_<run>.log`: the base parameters once, then the parameters that changed for each iteration.
-- `Traces/`: saved scope traces.
+```
+data/
+  timeseries/            Results_<run>_<n>.csv     waveforms of each sweep point (columns: time + Waveforms in parameters.py)
+  mat/                   RMS_<run>.csv             one row per sweep point, one column per waveform
+                         Average_<run>.csv
+                         PeakToPeak_<run>.csv
+                         Max_<run>.csv
+                         Min_<run>.csv
+                         Peak_<run>.csv            largest absolute value
+                         FFT_<run>.csv             one row per sweep point and waveform: f0_Hz, H1 … H50
+  html/                  Html_<run>.html           single report: for each waveform its time-domain figure then its
+                                                   harmonic bar plot (every point overlaid), then the calculated
+                                                   results table and the parameter table
+  log/                   Log_<run>.log             base parameters, then the parameters changed by each iteration
+  traces/                                          saved scope traces
+```
+
+The calculated results are computed once per time-series file, with one batch function per type in `pmath.py` (`rms`, `average`, `peak_to_peak`, `maximum`, `minimum`, `peak`, `harmonics`):
+
+- **Window:** all types use the same steady-state window, the last `ANALYSIS_CYCLES` (5) whole cycles of the grid fundamental. Without a fundamental, they use the whole saved window.
+- **RMS and average:** time-weighted, so they are correct on PLECS' variable-step samples.
+- **Harmonics:** the x-axis is the harmonic order, and each title shows the fundamental used: `Grid.f` = 50 Hz by default, `CTRL.fsw` = 80 kHz for the fast-leg signals (`F0_OVERRIDES`).
+- **Parameter table:** units, comments and values; a swept value is shown as `a / b / c`.
 
 ## Repository layout
 
@@ -174,16 +193,17 @@ Model/
   tpbpfc_init.m        Stand-alone MATLAB/Octave first-cut design script (sizing from the specs)
 Lib/
   sweep.py             Sweep definition and run flags (sweep / code generation / RT Box)   [system specific]
-  parameters.py        Model paths, component parameters, derived parameters, waveforms    [system specific]
+  parameters.py        Model paths, component parameters, waveforms                       [system specific]
+  derived.py           Derived parameters, recomputed on every sweep point                 [system specific]
   pplecs.py            PLECS XML-RPC interface, scope detection, result folders, sweep points, batch sizing
   pplots.py            HTML report: waveforms, harmonic bar plots, parameter table
   plog.py              Sweep log
-  pmath.py             Signal math: rms, average, FFT, harmonics, envelope
+  pmath.py             Signal math: batch RMS, average, peak-to-peak, max, min, peak, harmonics; envelope
   rtbox.py             PLECS Coder code generation and RT Box run
-RES/                   Sweep outputs (git-ignored)
+data/                  Sweep outputs (git-ignored)
 ```
 
-Only `parameters.py` and `sweep.py` are specific to this converter. To simulate another system (LLC, OBC, DC-DC …), copy those two files and edit them; the library modules stay unchanged. The header of `parameters.py` lists what it must define.
+Only `parameters.py`, `derived.py` and `sweep.py` are specific to this converter. To simulate another system (LLC, OBC, DC-DC …), copy those files and edit them; the library modules stay unchanged. The header of `parameters.py` lists what it must define.
 
 ## Parameter structs (`ModelVars`)
 

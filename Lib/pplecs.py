@@ -26,22 +26,25 @@ import subprocess
 import shutil
 import os
 from   pathlib              import  Path
+
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Convention with the PLECS model: ModelVars[OUTPUT_KEY] holds the output files of a run; the model's To File block writes
-#? its CSV to ToFile.ToFile_path. OUTPUT_FIELDS are filled in per run by set_output_files (not real model parameters).
+#? its CSV to ToFile.ToFile_path. OUTPUT_FIELDS are filled in per run by Sweep.set_output_files (not real model parameters).
 OUTPUT_KEY                     = 'ToFile'
-OUTPUT_FIELDS                  = ('sim_idx', 'utc_numeric', 'ToFile_path', 'logfile', 'output_html', 'Traces')
+OUTPUT_FIELDS                  = ('sim_idx', 'utc_numeric', 'ToFile_path', 'logfile', 'output_html', 'Traces', 'Mat')
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class ResultPaths:
-    """Result folders of a project under res_dir (created if missing): CSV, Log, html, Traces."""
+    """Result folders of a project under data_dir (created if missing):
+    timeseries (simulation CSVs), mat (one <type>_<run>.csv matrix per result type of PMath.RESULT_TYPES), log, html, traces."""
 
-    def __init__(self,res_dir):
-        self.root                   =   Path(res_dir)
-        self.csv                    =   self.root / "CSV"
-        self.log                    =   self.root / "Log"
+    def __init__(self,data_dir):
+        self.root                   =   Path(data_dir)
+        self.timeseries             =   self.root / "timeseries"
+        self.mat                    =   self.root / "mat"
+        self.log                    =   self.root / "log"
         self.html                   =   self.root / "html"
-        self.traces                 =   self.root / "Traces"
-        self.folders                =   [self.csv, self.html, self.log, self.traces]
+        self.traces                 =   self.root / "traces"
+        self.folders                =   [self.timeseries, self.mat, self.html, self.log, self.traces]
         for folder in self.folders:
             folder.mkdir(parents=True, exist_ok=True)
 #?----------------------------------------------------------------------------------------------------------------------------------------
@@ -236,50 +239,59 @@ class simpy:
                     os.remove(file_path)
 
 #?----------------------------------------------------------------------------------------------------------------------------------------
-def set_nested(d, path, value):
-    for key in path[:-1]:
-        d                      = d[key]
-    d[path[-1]]                = value
+class Sweep:
+    """Sweep points: nested ModelVars access, parallel batch sizing, output files of a run, sweep point generation."""
 
-def get_nested(d, path):
-    for key in path:
-        d                      = d[key]
-    return d
+    @staticmethod
+    def set_nested(d, path, value):
+        for key in path[:-1]:
+            d                      = d[key]
+        d[path[-1]]                = value
 
-def auto_batch_size(n_points, max_parallel=None, reserve=1):
-    """Sweep points per parallel batch, from the CPU threads available to this process (minus `reserve` left for the
-    OS / PLECS GUI), capped by max_parallel, then balanced so the batches are as even as possible
-    (e.g. 20 points on 15 threads -> 2 batches of 10 instead of 15 + 5)."""
-    threads                    = (os.process_cpu_count() if hasattr(os, 'process_cpu_count') else os.cpu_count()) or 1
-    workers                    = max(1, min(threads - reserve, max_parallel or threads, n_points))
-    n_batches                  = math.ceil(n_points / workers)
-    return math.ceil(n_points / n_batches)
+    @staticmethod
+    def get_nested(d, path):
+        for key in path:
+            d                      = d[key]
+        return d
 
-def set_output_files(mdlvar, paths, run_id, sim_idx):
-    """Output files of one run of the sweep run_id, written in mdlvar[OUTPUT_KEY]."""
-    out                        = mdlvar[OUTPUT_KEY]
-    out['sim_idx']             = sim_idx
-    out['utc_numeric']         = run_id
-    out['ToFile_path']         = (paths.csv  / f"Results_{run_id}_{sim_idx}.csv").as_posix()
-    out['logfile']             = (paths.log  / f"Log_{run_id}.log").as_posix()
-    out['output_html']         = (paths.html / f"Html_{run_id}.html").as_posix()
-    out['Traces']              = paths.traces.as_posix()
-    return mdlvar
+    @staticmethod
+    def auto_batch_size(n_points, max_parallel=None, reserve=1):
+        """Sweep points per parallel batch, from the CPU threads available to this process (minus `reserve` left for the
+        OS / PLECS GUI), capped by max_parallel, then balanced so the batches are as even as possible
+        (e.g. 20 points on 15 threads -> 2 batches of 10 instead of 15 + 5)."""
+        threads                    = (os.process_cpu_count() if hasattr(os, 'process_cpu_count') else os.cpu_count()) or 1
+        workers                    = max(1, min(threads - reserve, max_parallel or threads, n_points))
+        n_batches                  = math.ceil(n_points / workers)
+        return math.ceil(n_points / n_batches)
 
-def build_points(base, sweep, sweep_paths, run_id, paths, update_derived=None):
-    """One deep-copied ModelVars per combination of the sweep values, with derived parameters (update_derived(mv),
-    optional) and output files updated. Returns a list of (label {sweep name: value}, ModelVars)."""
-    points                     = []
-    for sim_idx, values in enumerate(itertools.product(*sweep.values()), start=1):
-        label                  = dict(zip(sweep, values))
-        mv                     = copy.deepcopy(base)
-        for name, value in label.items():
-            for path in sweep_paths[name]:
-                set_nested(mv, path, value)
-        if update_derived:
-            update_derived(mv)
-        set_output_files(mv, paths, run_id, sim_idx)
-        points.append((label, mv))
-    return points
+    @staticmethod
+    def set_output_files(mdlvar, paths, run_id, sim_idx):
+        """Output files of one run of the sweep run_id, written in mdlvar[OUTPUT_KEY]."""
+        out                        = mdlvar[OUTPUT_KEY]
+        out['sim_idx']             = sim_idx
+        out['utc_numeric']         = run_id
+        out['ToFile_path']         = (paths.timeseries / f"Results_{run_id}_{sim_idx}.csv").as_posix()
+        out['logfile']             = (paths.log  / f"Log_{run_id}.log").as_posix()
+        out['output_html']         = (paths.html / f"Html_{run_id}.html").as_posix()
+        out['Traces']              = paths.traces.as_posix()
+        out['Mat']                 = paths.mat.as_posix()
+        return mdlvar
+
+    @staticmethod
+    def build_points(base, sweep, sweep_paths, run_id, paths, update_derived=None):
+        """One deep-copied ModelVars per combination of the sweep values, with derived parameters (update_derived(mv),
+        optional, e.g. parameters.Derived.update) and output files updated. Returns a list of (label {sweep name: value}, ModelVars)."""
+        points                     = []
+        for sim_idx, values in enumerate(itertools.product(*sweep.values()), start=1):
+            label                  = dict(zip(sweep, values))
+            mv                     = copy.deepcopy(base)
+            for name, value in label.items():
+                for path in sweep_paths[name]:
+                    Sweep.set_nested(mv, path, value)
+            if update_derived:
+                update_derived(mv)
+            Sweep.set_output_files(mv, paths, run_id, sim_idx)
+            points.append((label, mv))
+        return points
 
 #?----------------------------------------------------------------------------------------------------------------------------------------

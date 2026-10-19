@@ -20,8 +20,8 @@ octave-workspace
 *.tmp
 
 # ---- Simulation results (keep folders, not data) ----
-RES/*
-!RES/.gitkeep
+data/*
+!data/.gitkeep
 ltspice/results/*
 !ltspice/results/.gitkeep
 

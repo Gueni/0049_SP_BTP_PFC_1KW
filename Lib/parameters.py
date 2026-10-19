@@ -13,11 +13,11 @@
 #?              derived parameters, result waveforms. For another system (LLC, OBC, DC-DC ...) copy this file and
 #?              edit it; the library files (pplecs, pplots, plog, pmath, rtbox) do not change.
 #?
-#?              Required : MODEL_NAME, MODEL_PATH, RES_DIR, ModelVars (with a 'ToFile' struct read by the model's
-#?                         To File block), Waveforms (names of the result CSV columns after time, in order).
+#?              Required : MODEL_NAME, MODEL_PATH, DATA_DIR, ModelVars (with a 'ToFile' struct read by the model's
+#?                         To File block), Waveforms ({name: unit} of the result CSV columns after time, in order).
 #?              Optional : MODEL_IMG_PATH (image on top of the HTML report), F0_PATH (key path of the fundamental
 #?                         frequency in ModelVars, None = no harmonic plots), F0_OVERRIDES (waveform name keyword ->
-#?                         key path of that waveform's own fundamental, e.g. the switching frequency), update_derived(mv) (recompute derived
+#?                         key path of that waveform's own fundamental, e.g. the switching frequency),
 #?                         parameters after the sweep changed base values), SolverOpts, AnalysisOpts.
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
@@ -26,43 +26,46 @@
 #? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
+import   copy
 from     pathlib     import   Path
 import   numpy       as       np
 #!----------------------------------------------------------------------------------------------------------------------------------------
 #! All paths are resolved from this file's location, so the scripts work from any working directory.
-LIB_DIR                    = Path(__file__).resolve().parent                    # <repo>/Lib
-ROOT_DIR                   = LIB_DIR.parent                                     # <repo>
-MODEL_NAME                 = "PFC"
-MODEL_PATH                 = ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
-MODEL_IMG_PATH             = ROOT_DIR / "asset" / "schematic.png"
-RES_DIR                    = ROOT_DIR / "RES"                                   # results: RES/CSV, RES/Log, RES/html, RES/Traces
-F0_PATH                    = ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
-F0_OVERRIDES               = {                                                  # waveform name keyword -> its own fundamental (first match wins)
+LIB_DIR        =  Path(__file__).resolve().parent                    # <repo>/Lib
+ROOT_DIR       =  LIB_DIR.parent                                     # <repo>
+MODEL_NAME     =  "PFC"                                              # pfc model name (without .plecs extension) 
+MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"         
+MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"
+DATA_DIR       =  ROOT_DIR / "data"                                  # results: data/timeseries, data/mat, data/html, data/log, data/traces
+F0_PATH        =  ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
+F0_OVERRIDES   =  {                                                  # waveform name keyword -> its own fundamental (first match wins)
                               'HS1'   : ('CTRL', 'fsw'),                        # fast leg switches at fsw
                               'LS1'   : ('CTRL', 'fsw'),
                              }
+TSIM           = 1                                                  # simulation time [s]
+TSAVE          = TSIM - 0.02                                               # time point at which the data is saved [s]
 #!----------------------------------------------------------------------------------------------------------------------------------------
-Sim_param 	= {                                                                                            
-                  'tSim'	    	   : 0.6,                                                                                                               #? [s]     - Total simulation time
-                  'load_tflip'	   : 0.6/2,                                                                                                             #? [s]     - Time at which the load changes state 
+Sim_param 	   =  {                                                                                            
+                  'tSim'	    	   : TSIM,                                                                                                               #? [s]     - Total simulation time
+                  'load_tflip'	   : TSIM/2,                                                                                                             #? [s]     - Time at which the load changes state 
                   'maxStep'		   : 1e-3,                                                                                                              #? [s]     - Maximum simulation time step
                   'ZeroCross'       : 1000,                                                                                                              #? [/]     - Zero-crossing detection limit
                   'rel_tol'		   : 1e-7                                                                                                               #? [/]     - Relative tolerance for the numerical solver
                }
-Configs     = {
+Configs        =  {
                   'Grid'            : 1,                                                                                                                 #? [/]      - Config of the Grid.
                   'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
-                  'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC.
+                  'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC (1 TPB, 2 PFC, 3 PFC D, 4 Pass).
                   'DCLink'          : 4,                                                                                                                 #? [/]      - Config of the DCLink (2 = capacitor with ESR).
                   'Load'            : 1,                                                                                                                 #? [/]      - Config of the Load.
                   'Loadgen'         : 1                                                                                                                  #? [/]      - Config of the Load generator.
 
                }
-ToFile      = {                     
+ToFile         =  {                     
                   'Ts'              : 0,                                                                                                                 #? [s]     - Sampling time for saving data
-                  'tsave' 	    	   : Sim_param['tSim']-0.2                                                                                              #? [s]     - Time point at which the data is saved
+                  'tsave' 	    	   : TSAVE,                                                                                                              #? [s]     - Time point at which the data is saved
                }
-Grid        = {                                                                                                                                          # EVSE / grid source
+Grid           =  {                                                                                                                                          # EVSE / grid source
                   'Config'          : Configs['Grid'],                                                                                                   #? [/]     - Configuration setting for the grid
                   'Vin'             : 230,                                                                                                               #? [V]     - Input voltage of the grid
                   'Ts'              : 1/80e3,                                                                                                            #? [s]     - Sampling time for grid operations
@@ -70,7 +73,7 @@ Grid        = {                                                                 
                   'phase'           : 0,                                                                                                                 #? [rad]   - Grid voltage phase angle
                   'R'               : 0.01                                                                                                               #? [Ohm]   - Grid resistance
                }
-AC_Filter   = {                                                                                                                                       # Power/EMI FILTER (library): 1 = 1PH, 2 = 3PH, 3 = Pass. 1PH: CMC -> Cx, Cy1/Cy2 -> L1/L5 (Ll) -> DMC -> Cx1
+AC_Filter      =  {                                                                                                                                       # Power/EMI FILTER (library): 1 = 1PH, 2 = 3PH, 3 = Pass. 1PH: CMC -> Cx, Cy1/Cy2 -> L1/L5 (Ll) -> DMC -> Cx1
                   'Config'        : Configs['AC_Filter'],                                                                                             #? [/]      - Configuration of the EMI filter (1 = 1PH, 2 = 3PH, 3 = Pass)
                   'Ll'            : 10e-6,                                                                                                            #? [H]      - Line / neutral series inductors L1, L5 (wiring + small DM inductor)
                   'CMC'           : {                                                                                                                 # common-mode choke, 2 coupled windings (Magnatic Components/Choke)
@@ -124,7 +127,71 @@ AC_Filter   = {                                                                 
                      'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
                   }
                }
-PFC         = {
+#! Switch library: one entry per device of the PLECS Thermal Lib (/0000_libraries/Plecs/Thermal Lib).
+#! PFC['SW'] takes a copy of the device selected by PFC_SWITCH.
+Switches       =  {
+                  'C3M0021120K'    : {                                                                                                                # Wolfspeed C3M0021120K, 1200 V / 100 A / 21 mOhm SiC MOSFET (selected)
+                     'Config'         : 2,                                                                                                            #? [/]      - FET config: 1 Real SW, 2 Real SW + separate body diode, 3 Ideal, 4 Pass, 5 Short
+                     'therm_mosfet'   : 'file:C3M0021120K',                                                                                           #? [/]      - Thermal description of the switch (Thermal Lib)
+                     'Rgon'           : 2.5,                                                                                                          #? [Ohm]    - External turn-on gate resistance
+                     'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
+                     'ron_mosfet'     : 21e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0021120K: 21 mOhm typ, 1200 V / 100 A)
+                     'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
+                     'Coss'           : {                                                                                                             # output capacitance (Passives/C)
+                        'Config'  : 5,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass (Coss off), 6 Short
+                        'Cap_s'   : 180e-12,                                                                                                          #? [F]      - Coss at 800 V (C3M0021120K: 180 pF)
+                        'Resr_s'  : 1e-12,                                                                                                            #? [Ohm]    - Equivalent series resistance
+                        'Lesl_s'  : 1e-12,                                                                                                            #? [H]      - Equivalent series inductance
+                        'Npara'   : 1,                                                                                                                #? [/]      - Number of parallel capacitors
+                        'Nseri'   : 1,                                                                                                                #? [/]      - Number of series capacitors
+                        'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
+                        'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
+                     },
+                     'therm_body_diode': 'file:C3M0021120K_bodydiode',                                                                                #? [/]      - Thermal description of the body diode (Config 2)
+                     'ron_body_diode' : 5e-3,                                                                                                         #? [Ohm]    - Body diode on-state resistance (Config 2)
+                     'Rdb_off'        : 0,                                                                                                            #? [Ohm]    - Body diode off-state resistance
+                     'vf_body_diode'  : 4.5,                                                                                                          #? [V]      - Body diode forward voltage
+                     'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
+                     'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
+                     'Tamb'           : 25,                                                                                                           #? [°C]     - Ambient temperature
+                     't_init'         : 25,                                                                                                           #? [°C]     - Initial temperature of the thermal chain
+                     'rth_sw'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance junction -> case
+                     'rth_ch'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance case -> heatsink (TIM)
+                     'Rth'            : 0.2                                                                                                           #? [K/W]    - Total thermal resistance junction -> heatsink
+                  },
+           
+                  'C3M0015065K'    : {                                                                                                                # Wolfspeed C3M0015065K, 650 V / 120 A / 15 mOhm SiC MOSFET (650 V option)
+                     'Config'         : 2,                                                                                                            #? [/]      - FET config: 1 Real SW, 2 Real SW + separate body diode, 3 Ideal, 4 Pass, 5 Short
+                     'therm_mosfet'   : 'file:C3M0015065K',                                                                                           #? [/]      - Thermal description of the switch (Thermal Lib)
+                     'Rgon'           : 2.5,                                                                                                          #? [Ohm]    - External turn-on gate resistance
+                     'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
+                     'ron_mosfet'     : 15e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0015065K: 15 mOhm typ, 650 V / 120 A)
+                     'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
+                     'Coss'           : {                                                                                                             # output capacitance (Passives/C)
+                        'Config'  : 5,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass (Coss off), 6 Short
+                        'Cap_s'   : 289e-12,                                                                                                          #? [F]      - Coss at 400 V (C3M0015065K: 289 pF)
+                        'Resr_s'  : 1e-12,                                                                                                            #? [Ohm]    - Equivalent series resistance
+                        'Lesl_s'  : 1e-12,                                                                                                            #? [H]      - Equivalent series inductance
+                        'Npara'   : 1,                                                                                                                #? [/]      - Number of parallel capacitors
+                        'Nseri'   : 1,                                                                                                                #? [/]      - Number of series capacitors
+                        'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
+                        'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
+                     },
+                     'therm_body_diode': 'file:C3M0015065K_bodydiode',                                                                                #? [/]      - Thermal description of the body diode (Config 2)
+                     'ron_body_diode' : 5e-3,                                                                                                         #? [Ohm]    - Body diode on-state resistance (Config 2)
+                     'Rdb_off'        : 0,                                                                                                            #? [Ohm]    - Body diode off-state resistance
+                     'vf_body_diode'  : 4.5,                                                                                                          #? [V]      - Body diode forward voltage
+                     'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
+                     'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
+                     'Tamb'           : 25,                                                                                                           #? [°C]     - Ambient temperature
+                     't_init'         : 25,                                                                                                           #? [°C]     - Initial temperature of the thermal chain
+                     'rth_sw'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance junction -> case
+                     'rth_ch'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance case -> heatsink (TIM)
+                     'Rth'            : 0.2                                                                                                           #? [K/W]    - Total thermal resistance junction -> heatsink
+                  }
+               }
+PFC_SWITCH     = 'C3M0021120K'                                                                                                                           # device of Switches used by the PFC stage
+PFC            =  {
                   'Config'          : Configs['PFC'],                                                                                                    #? [/]      - Diode thermal description
                   'Choke'           : {
                      'Config'       : 1,                                                                                                                 #? [/]      - Diode thermal description
@@ -138,47 +205,19 @@ PFC         = {
                      'i2'           : 0                                                                                                                  #? [A]      - Initial current in the second choke winding
                   },
                   'Cout'            : 10e-6,                                                                                                             #? [F]      - PFC output (HF decoupling) capacitance
-                  'SW'              : {
-                        'Config'       : 2,                                                                                                              #? [/]      - Switch configuration
-                        'therm_mosfet' : 'file:C3M0021120K',                                                                                             #? [/]      - MOSFET thermal model file path
-                        'Rgon'         : 2.5,                                                                                                            #? [Ohm]    - Gate resistance for turn-on
-                        'Rgoff'        : 2.5,                                                                                                            #? [Ohm]    - Gate resistance for turn-off
-                        'ron_mosfet'   : 65e-3,                                                                                                          #? [Ohm]    - MOSFET on-state resistance
-                        'Iinit'        : 0,                                                                                                              #? [A]      - Initial current through the MOSFET
-                        'Coss'         : {
-                              'Config' : 5,                                                                                                              #? [/]      - Capacitance configuration
-                              'Cap_s'  : 180e-12,                                                                                                        #? [F]      - Capacitance value
-                              'Resr_s' : 1e-12,                                                                                                          #? [Ohm]    - Equivalent series resistance of the capacitance
-                              'Lesl_s' : 1e-12,                                                                                                          #? [H]      - Equivalent series inductance of the capacitance
-                              'Npara'  : 1,                                                                                                              #? [/]      - Number of parallel capacitors
-                              'Nseri'  : 1,                                                                                                              #? [/]      - Number of series capacitors
-                              'Vinit'  : 0,                                                                                                              #? [V]      - Initial voltage across the capacitance
-                              'Iinit'  : 0                                                                                                               #? [A]      - Initial current through the capacitance
-                        },
-                        'therm_body_diode'   : 'file:C3M0021120K_bodydiode',                                                                             #? [/]      - Body diode thermal model file path
-                        'ron_body_diode'     : 5e-3,                                                                                                     #? [Ohm]    - Body diode on-state resistance
-                        'Rdb_off'            : 0,                                                                                                        #? [Ohm]    - Resistance when the body diode is off
-                        'vf_body_diode'      : 4.5,                                                                                                      #? [V]      - Body diode forward voltage
-                        'nPara'              : 1,                                                                                                        #? [/]      - Number of parallel MOSFETs
-                        'T_init'             : 25,                                                                                                       #? [°C]     - Initial temperature of the MOSFET
-                        'Tamb'               : 25,                                                                                                       #? [°C]     - Ambient temperature
-                        't_init'             : 25,                                                                                                       #? [s]      - Initial time for thermal calculations
-                        'rth_sw'             : 0.1,                                                                                                      #? [K/W]    - Thermal resistance between the switch junction and case
-                        'rth_ch'             : 0.1,                                                                                                      #? [K/W]    - Thermal resistance between the case and heatsink
-                        'Rth'                : 0.1                                                                                                       #? [K/W]    - Total thermal resistance
-                     }
+                  'SW'              : copy.deepcopy(Switches[PFC_SWITCH])                                                                             # selected switch (see Switches / PFC_SWITCH)
                }
-DCLink      = {                                                                                             
+DCLink         =  {                                                                                             
                       'Config'		   : Configs['DCLink'],                                                                                              #? [/]      - Capacitance configuration
-                      'Cap_s'    		: 470e-6,                                                                                                         #? [F]      - Capacitance value 
+                      'Cap_s'    		: 47e-6,                                                                                                         #? [F]      - Capacitance value 
                       'Resr_s'		   : 50e-3,                                                                                                          #? [Ohm]    - Equivalent series resistance of the capacitance
                       'Lesl_s'		   : 1e-12,                                                                                                          #? [H]      - Equivalent series inductance of the capacitance
-                      'Npara'		      : 1,                                                                                                              #? [/]      - Number of parallel capacitors
+                      'Npara'		      : 10,                                                                                                              #? [/]      - Number of parallel capacitors
                       'Nseri'		      : 1,                                                                                                              #? [/]      - Number of series capacitors
                       'Vinit'		      : -2**0.5 * Grid['Vin'],                                                                                          #? [V]      - Initial voltage: line peak, inrush bypass assumed (negative: CDC is placed flipped)
                       'Iinit'		      : 0                                                                                                               #? [A]      - Initial current through the capacitance   
                      }
-CTRL        = {
+CTRL           =  {
                      'Vmax'                  : 440.0,                                                                                                    #? [V]     - Maximum voltage
                      'Imax'                  : 12.54,                                                                                                    #? [A]     - Maximum current
                      'Rmax'                  : 440.0 / 12.54,                                                                                            #? [Ohm]   - Maximum load impedance (Rmax = Vmax / Imax)
@@ -222,7 +261,7 @@ CTRL        = {
                      'eps_s'                 : 0.1,                                                                                                      #? [V]     - Offset in sign(vac) = vac/(|vac|+eps_s)
                      't_ss'                  : 0.2                                                                                                       #? [s]     - Soft-start ramp time of Vref from sqrt(2)*Vin to Vref
                   }
-Load        = {
+Load           =  {
                      'Config'                : Configs['Load'],                                                                                          #? [/]      - Configuration type for the load setup
                      'Pout'                  : 1e3,                                                                                                      #? [W]      - Load power
                      'Vout1'                 : 400,                                                                                                      #? [V]      - Load voltage (first step)
@@ -239,12 +278,12 @@ Load        = {
                                                 }
                         
                }
-Thermals    = {
+Thermals       =  {
                      'T_amb'                 : 25.0,                                                                                                     #? [°C]     - Ambient temperature
                      'rth_Amb'               : 0.09                                                                                                      #? [K/W]    - Thermal resistance from junction to ambient
                   }
 #!----------------------------------------------------------------------------------------------------------------------------------------
-ModelVars   = {                                                                                             
+ModelVars      =  {                                                                                             
                   'Sim_param'             :  Sim_param               ,      
                   'ToFile'                :  ToFile                  ,
                   'Grid'                  :  Grid                    ,                                                                   
@@ -255,10 +294,10 @@ ModelVars   = {
                   'Load'                  :  Load                    ,                                                                
                   'Thermals'              :  Thermals    
                }	
-SolverOpts  = {
+SolverOpts     =  {
                   'Sim_param'             :  ModelVars['Sim_param'] 
                }
-AnalysisOpts= {
+AnalysisOpts   =  {
                   'system_period'         :  1/Grid['f']             ,      
                   'freq_range_min'        :  1                       ,
                   'freq_range_max'        :  1e7                     ,
@@ -272,87 +311,72 @@ AnalysisOpts= {
                   'Jacobian_rel_tol'      :  1e-6        
                                                                            
               }
-#!----------------------------------------------------------------------------------------------------------------------------------------
-def update_derived(mdlvar):
-   """Recompute the parameters derived from other ones (same formulas as above), after a sweep changed the base values."""
-   Choke, DC, Ctrl, Ld        = mdlvar['PFC']['Choke'], mdlvar['DCLink'], mdlvar['CTRL'], mdlvar['Load']
-   DC['Vinit']                = -2**0.5 * mdlvar['Grid']['Vin']
-   Ctrl['L_boost']            = Choke['L1'] + Choke['L2'] - 2 * Choke['Lm']
-   Ctrl['C_out']              = mdlvar['PFC']['Cout'] + DC['Cap_s'] * DC['Npara'] / DC['Nseri']
-   Ctrl['fc_i']               = Ctrl['fsw'] / 10
-   Ctrl['Kp_i']               = 2 * np.pi * Ctrl['fc_i'] * Ctrl['L_boost']
-   Ctrl['Ki_i']               = (2 * np.pi * Ctrl['fc_i'])**2 / 10 * Ctrl['L_boost']
-   Ctrl['Kp_v']               = 2 * np.pi * Ctrl['fc_v'] * Ctrl['C_out'] * Ctrl['Vref']
-   Ctrl['Ki_v']               = (2 * np.pi * Ctrl['fc_v'])**2 / 2 * Ctrl['C_out'] * Ctrl['Vref']
-   Ld['R']                    = Ctrl['Vref']**2 / Ld['Pout']
-   return mdlvar
-
-Waveforms   =  [                                                                                            
-                  'Grid Voltage',                  
-                  'Grid Current',
+Waveforms      =  {                                                                                            # result CSV columns after time, in order: name -> unit
+                  'Grid Voltage'                          : '[ V ]',
+                  'Grid Current'                          : '[ A ]',
                   #!-------------------------
-                  'EMI Filter Current',
-                  'EMI Filter Voltage',
+                  'EMI Filter Current'                    : '[ A ]',
+                  'EMI Filter Voltage'                    : '[ V ]',
                   #!-------------------------
-                  'PFC Input Voltage',
-                  'PFC Input Current',
-                  'PFC output voltage',
-                  'PFC output Current',
+                  'PFC Input Voltage'                     : '[ V ]',
+                  'PFC Input Current'                     : '[ A ]',
+                  'PFC output voltage'                    : '[ V ]',
+                  'PFC output Current'                    : '[ A ]',
                   #!-------------------------
-                  'PFC gates signal HS1',
-                  'PFC gates signal LS1',
-                  'PFC gates signal HS2',
-                  'PFC gates signal LS2',
-                  'PFC gates signal HS3',
-                  'PFC gates signal LS3',
+                  'PFC gates signal HS1'                  : '[ / ]',
+                  'PFC gates signal LS1'                  : '[ / ]',
+                  'PFC gates signal HS2'                  : '[ / ]',
+                  'PFC gates signal LS2'                  : '[ / ]',
+                  'PFC gates signal HS3'                  : '[ / ]',
+                  'PFC gates signal LS3'                  : '[ / ]',
                   #!-------------------------
-                  'PFC Input choke Winding 1 Current',
-                  'PFC Input choke Winding 1 Voltage',
-                  'PFC Input choke Winding 3 Current',
-                  'PFC Input choke Winding 2 Voltage',
+                  'PFC Input choke Winding 1 Current'     : '[ A ]',
+                  'PFC Input choke Winding 1 Voltage'     : '[ V ]',
+                  'PFC Input choke Winding 3 Current'     : '[ A ]',
+                  'PFC Input choke Winding 2 Voltage'     : '[ V ]',
                   #!-------------------------
-                  'PFC HS1 voltage',
-                  'PFC LS1 voltage',
-                  'PFC HS2 voltage',
-                  'PFC LS2 voltage',
-                  'PFC HS3 voltage',
-                  'PFC LS3 voltage',
+                  'PFC HS1 voltage'                       : '[ V ]',
+                  'PFC LS1 voltage'                       : '[ V ]',
+                  'PFC HS2 voltage'                       : '[ V ]',
+                  'PFC LS2 voltage'                       : '[ V ]',
+                  'PFC HS3 voltage'                       : '[ V ]',
+                  'PFC LS3 voltage'                       : '[ V ]',
                   #!-------------------------
-                  'PFC HS1 Current',
-                  'PFC LS1 Current',
-                  'PFC HS2 Current',
-                  'PFC LS2 Current',
-                  'PFC HS3 Current',
-                  'PFC LS3 Current',
+                  'PFC HS1 Current'                       : '[ A ]',
+                  'PFC LS1 Current'                       : '[ A ]',
+                  'PFC HS2 Current'                       : '[ A ]',
+                  'PFC LS2 Current'                       : '[ A ]',
+                  'PFC HS3 Current'                       : '[ A ]',
+                  'PFC LS3 Current'                       : '[ A ]',
                   #!-------------------------
-                  'PFC HS1 junction Temperature',
-                  'PFC LS1 junction Temperature',
-                  'PFC HS2 junction Temperature',
-                  'PFC LS2 junction Temperature',
-                  'PFC HS3 junction Temperature',
-                  'PFC LS3 junction Temperature',
+                  'PFC HS1 junction Temperature'          : '[ °C ]',
+                  'PFC LS1 junction Temperature'          : '[ °C ]',
+                  'PFC HS2 junction Temperature'          : '[ °C ]',
+                  'PFC LS2 junction Temperature'          : '[ °C ]',
+                  'PFC HS3 junction Temperature'          : '[ °C ]',
+                  'PFC LS3 junction Temperature'          : '[ °C ]',
                   #!-------------------------
-                  'PFC HS1 switching losses',
-                  'PFC LS1 switching losses',
-                  'PFC HS2 switching losses',
-                  'PFC LS2 switching losses',
-                  'PFC HS3 switching losses',
-                  'PFC LS3 switching losses',
+                  'PFC HS1 switching losses'              : '[ W ]',
+                  'PFC LS1 switching losses'              : '[ W ]',
+                  'PFC HS2 switching losses'              : '[ W ]',
+                  'PFC LS2 switching losses'              : '[ W ]',
+                  'PFC HS3 switching losses'              : '[ W ]',
+                  'PFC LS3 switching losses'              : '[ W ]',
                   #!-------------------------
-                  'PFC HS1 conduction losses',
-                  'PFC LS1 conduction losses',
-                  'PFC HS2 conduction losses',
-                  'PFC LS2 conduction losses',
-                  'PFC HS3 conduction losses',
-                  'PFC LS3 conduction losses',
+                  'PFC HS1 conduction losses'             : '[ W ]',
+                  'PFC LS1 conduction losses'             : '[ W ]',
+                  'PFC HS2 conduction losses'             : '[ W ]',
+                  'PFC LS2 conduction losses'             : '[ W ]',
+                  'PFC HS3 conduction losses'             : '[ W ]',
+                  'PFC LS3 conduction losses'             : '[ W ]',
                   #!-------------------------
-                  'PFC output capacitor voltage',
-                  'PFC output capacitor current',
+                  'PFC output capacitor voltage'          : '[ V ]',
+                  'PFC output capacitor current'          : '[ A ]',
                   #!-------------------------
-                  'DCLink capacitor voltage',
-                  'DCLink capacitor current',
+                  'DCLink capacitor voltage'              : '[ V ]',
+                  'DCLink capacitor current'              : '[ A ]',
                   #!-------------------------
-                  'Load voltage',
-                  'Load current'
-               ]
+                  'Load voltage'                          : '[ V ]',
+                  'Load current'                          : '[ A ]'
+               }
 #!----------------------------------------------------------------------------------------------------------------------------------------
