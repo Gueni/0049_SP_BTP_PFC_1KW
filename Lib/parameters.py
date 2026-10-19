@@ -8,8 +8,17 @@
 #?          /_/  /_/\____/\__,_/\___/_/  /_/    \__,_/_/   \__,_/_/ /_/ /_/____/
 #?
 #?
-#? Name:        Model_Parameters.py
-#? Purpose:     Model paths, simulation settings and component parameters of the PFC model.
+#? Name:        parameters.py
+#? Purpose:     Everything specific to the simulated system (here the 1 kW TPB PFC): model paths, parameters,
+#?              derived parameters, result waveforms. For another system (LLC, OBC, DC-DC ...) copy this file and
+#?              edit it; the library files (pplecs, pplots, plog, pmath, rtbox) do not change.
+#?
+#?              Required : MODEL_NAME, MODEL_PATH, RES_DIR, ModelVars (with a 'ToFile' struct read by the model's
+#?                         To File block), Waveforms (names of the result CSV columns after time, in order).
+#?              Optional : MODEL_IMG_PATH (image on top of the HTML report), F0_PATH (key path of the fundamental
+#?                         frequency in ModelVars, None = no harmonic plots), F0_OVERRIDES (waveform name keyword ->
+#?                         key path of that waveform's own fundamental, e.g. the switching frequency), update_derived(mv) (recompute derived
+#?                         parameters after the sweep changed base values), SolverOpts, AnalysisOpts.
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -26,26 +35,25 @@ ROOT_DIR                   = LIB_DIR.parent                                     
 MODEL_NAME                 = "PFC"
 MODEL_PATH                 = ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
 MODEL_IMG_PATH             = ROOT_DIR / "doc" / "schematic.png"
-RES_DIR                    = ROOT_DIR / "RES"
-Traces_path                = RES_DIR / "Traces"
-ToFile_path                = RES_DIR / "CSV"
-logfile_path               = RES_DIR / "Log"
-output_html_path           = RES_DIR / "html"
-RES_FOLDERS                = [ToFile_path, output_html_path, logfile_path, Traces_path]
-for _folder in RES_FOLDERS : _folder.mkdir(parents=True, exist_ok=True)
+RES_DIR                    = ROOT_DIR / "RES"                                   # results: RES/CSV, RES/Log, RES/html, RES/Traces
+F0_PATH                    = ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
+F0_OVERRIDES               = {                                                  # waveform name keyword -> its own fundamental (first match wins)
+                              'HS1'   : ('CTRL', 'fsw'),                        # fast leg switches at fsw
+                              'LS1'   : ('CTRL', 'fsw'),
+                             }
 #!----------------------------------------------------------------------------------------------------------------------------------------
 Sim_param 	= {                                                                                            
-                  'tSim'	    	   : 1.0,                                                                                                               #? [s]     - Total simulation time
-                  'load_tflip'	   : 1.0/2,                                                                                                             #? [s]     - Time at which the load changes state 
+                  'tSim'	    	   : 0.6,                                                                                                               #? [s]     - Total simulation time
+                  'load_tflip'	   : 0.1/2,                                                                                                             #? [s]     - Time at which the load changes state 
                   'maxStep'		   : 1e-3,                                                                                                              #? [s]     - Maximum simulation time step
                   'ZeroCross'       : 1000,                                                                                                              #? [/]     - Zero-crossing detection limit
                   'rel_tol'		   : 1e-7                                                                                                               #? [/]     - Relative tolerance for the numerical solver
                }
 Configs     = {
                   'Grid'            : 1,                                                                                                                 #? [/]      - Config of the Grid.
-                  'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter.
+                  'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
                   'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC.
-                  'DCLink'          : 2,                                                                                                                 #? [/]      - Config of the DCLink (2 = capacitor with ESR).
+                  'DCLink'          : 4,                                                                                                                 #? [/]      - Config of the DCLink (2 = capacitor with ESR).
                   'Load'            : 1                                                                                                                  #? [/]      - Config of the Load.
 
                }
@@ -61,15 +69,59 @@ Grid        = {                                                                 
                   'phase'           : 0,                                                                                                                 #? [rad]   - Grid voltage phase angle
                   'R'               : 0.01                                                                                                               #? [Ohm]   - Grid resistance
                }
-AC_Filter   = {
-                  'Config'          : Configs['AC_Filter'],                                                                                              #? [/]      - Configuration setting for the AC filter
-                  'Cin'             : 1e-6,                                                                                                              #? [F]      - Input capacitance
-                  'L_CMC'           : 1.5e-3,                                                                                                            #? [H]      - Common-mode choke inductance
-                  'L_DMC'           : 900e-6,                                                                                                            #? [H]      - Differential-mode choke inductance
-                  'Cx'              : 0.1e-6,                                                                                                            #? [F]      - X-capacitor value
-                  'Cy1'             : 4.7e-12,                                                                                                           #? [F]      - Y-capacitor value (first)
-                  'Cy2'             : 4.7e-12,                                                                                                           #? [F]      - Y-capacitor value (second)
-                  'Ll'              : 10e-6                                                                                                              #? [H]      - Filter inductor leakage inductance
+AC_Filter   = {                                                                                                                                       # Power/EMI FILTER (library): 1 = 1PH, 2 = 3PH, 3 = Pass. 1PH: CMC -> Cx, Cy1/Cy2 -> L1/L5 (Ll) -> DMC -> Cx1
+                  'Config'        : Configs['AC_Filter'],                                                                                             #? [/]      - Configuration of the EMI filter (1 = 1PH, 2 = 3PH, 3 = Pass)
+                  'Ll'            : 10e-6,                                                                                                            #? [H]      - Line / neutral series inductors L1, L5 (wiring + small DM inductor)
+                  'CMC'           : {                                                                                                                 # common-mode choke, 2 coupled windings (Magnatic Components/Choke)
+                     'L1'         : 4.7e-3,                                                                                                           #? [H]      - Self inductance of winding 1 (nanocrystalline CMC, 4.7 mH / 10 A)
+                     'L2'         : 4.7e-3,                                                                                                           #? [H]      - Self inductance of winding 2 (nanocrystalline CMC, 4.7 mH / 10 A)
+                     'R1'         : 30e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 1
+                     'R2'         : 30e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 2
+                     'Lm'         : 0.995 * 4.7e-3,                                                                                                   #? [H]      - Mutual inductance (coupling k = 0.995; leakage L1 - Lm per winding)
+                     'Rm'         : 0,                                                                                                                #? [Ohm]    - Mutual resistance
+                     'i1'         : 0,                                                                                                                #? [A]      - Initial current in winding 1
+                     'i2'         : 0                                                                                                                 #? [A]      - Initial current in winding 2
+                  },
+                  'DMC'           : {                                                                                                                 # second-stage differential-mode choke, 2 uncoupled windings (Magnatic Components/Choke)
+                     'L1'         : 100e-6,                                                                                                           #? [H]      - Self inductance of winding 1 (powder-core DM choke, 100 uH / 10 A)
+                     'L2'         : 100e-6,                                                                                                           #? [H]      - Self inductance of winding 2 (powder-core DM choke, 100 uH / 10 A)
+                     'R1'         : 25e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 1
+                     'R2'         : 25e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 2
+                     'Lm'         : 0,                                                                                                                #? [H]      - Mutual inductance (coupling k = 0; leakage L1 - Lm per winding)
+                     'Rm'         : 0,                                                                                                                #? [Ohm]    - Mutual resistance
+                     'i1'         : 0,                                                                                                                #? [A]      - Initial current in winding 1
+                     'i2'         : 0                                                                                                                 #? [A]      - Initial current in winding 2
+                  },
+                  'Cx'            : {                                                                                                                 # X2 capacitors Cx and Cx1 (Passives/C, both read this struct)
+                     'Config'     : 2,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short
+                     'Cap_s'      : 470e-9,                                                                                                           #? [F]      - X2 film capacitance, 470 nF / 310 VAC
+                     'Resr_s'     : 15e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance
+                     'Lesl_s'     : 15e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
+                     'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
+                     'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
+                     'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
+                  },
+                  'Cy1'           : {                                                                                                                 # Y capacitor line -> PE (Passives/C)
+                     'Config'     : 2,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short
+                     'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance
+                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
+                     'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
+                     'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
+                     'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
+                  },
+                  'Cy2'           : {                                                                                                                 # Y capacitor neutral -> PE (Passives/C)
+                     'Config'     : 2,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short
+                     'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance
+                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
+                     'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
+                     'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
+                     'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
+                  }
                }
 PFC         = {
                   'Config'          : Configs['PFC'],                                                                                                    #? [/]      - Diode thermal description
@@ -86,7 +138,7 @@ PFC         = {
                   },
                   'Cout'            : 10e-6,                                                                                                             #? [F]      - PFC output (HF decoupling) capacitance
                   'SW'              : {
-                        'Config'       : 1,                                                                                                              #? [/]      - Switch configuration
+                        'Config'       : 2,                                                                                                              #? [/]      - Switch configuration
                         'therm_mosfet' : 'file:C3M0021120K',                                                                                             #? [/]      - MOSFET thermal model file path
                         'Rgon'         : 2.5,                                                                                                            #? [Ohm]    - Gate resistance for turn-on
                         'Rgoff'        : 2.5,                                                                                                            #? [Ohm]    - Gate resistance for turn-off
@@ -216,15 +268,6 @@ AnalysisOpts= {
                                                                            
               }
 #!----------------------------------------------------------------------------------------------------------------------------------------
-def set_output_files(mdlvar, utc_numeric, sim_idx):
-   mdlvar['ToFile']['sim_idx']      = sim_idx
-   mdlvar['ToFile']['utc_numeric']  = utc_numeric
-   mdlvar['ToFile']['ToFile_path']  = (ToFile_path      / f"Results_{utc_numeric}_{sim_idx}.csv").as_posix()
-   mdlvar['ToFile']['logfile']      = (logfile_path     / f"Log_{utc_numeric}.log").as_posix()
-   mdlvar['ToFile']['output_html']  = (output_html_path / f"Html_{utc_numeric}.html").as_posix()
-   mdlvar['ToFile']['Traces']       = Traces_path.as_posix()
-   return mdlvar
-
 def update_derived(mdlvar):
    """Recompute the parameters derived from other ones (same formulas as above), after a sweep changed the base values."""
    Choke, DC, Ctrl, Ld        = mdlvar['PFC']['Choke'], mdlvar['DCLink'], mdlvar['CTRL'], mdlvar['Load']
@@ -306,30 +349,5 @@ Waveforms   =  [
                   #!-------------------------
                   'Load voltage',
                   'Load current'
-               ]		
-
-def generate_units(waveforms):
-    keyword_to_unit = {
-        'Voltage'       : '[ V ]',
-        'Current'       : '[ A ]',
-        'Temperature'   : '[ C ]',
-        'losses'        : '[ W ]',
-        'signal'        : '[ V ]'
-    }
-    units = []
-    for waveform in waveforms:
-        unit_found = False
-        for keyword, unit in keyword_to_unit.items():
-            if keyword.lower() in waveform.lower():
-                units.append(unit)
-                unit_found = True
-                break
-        if not unit_found:
-            units.append('[ Unknown ]')
-    return units
-
-Units       = generate_units(Waveforms)
-
-
-
-
+               ]
+#!----------------------------------------------------------------------------------------------------------------------------------------

@@ -8,8 +8,9 @@
 #?          /_/   /_____/_____/\____//____/  /_/    \____/_/ |_/\____/
 #?
 #?
-#? Name:        plecs.py
-#? Purpose:     PLECS XML-RPC interface (launch PLECS, set parameters, run simulations).
+#? Name:        pplecs.py
+#? Purpose:     PLECS XML-RPC interface (launch PLECS, set parameters, run simulations), result folders and sweep points.
+#?              System independent: everything system specific comes from parameters.py / sweep.py.
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -24,8 +25,25 @@ import xmlrpc.client
 import subprocess
 import shutil
 import os
+from   pathlib              import  Path
+#?----------------------------------------------------------------------------------------------------------------------------------------
+#? Convention with the PLECS model: ModelVars[OUTPUT_KEY] holds the output files of a run; the model's To File block writes
+#? its CSV to ToFile.ToFile_path. OUTPUT_FIELDS are filled in per run by set_output_files (not real model parameters).
+OUTPUT_KEY                     = 'ToFile'
+OUTPUT_FIELDS                  = ('sim_idx', 'utc_numeric', 'ToFile_path', 'logfile', 'output_html', 'Traces')
+#?----------------------------------------------------------------------------------------------------------------------------------------
+class ResultPaths:
+    """Result folders of a project under res_dir (created if missing): CSV, Log, html, Traces."""
 
-import Model_Parameters     as  mdl
+    def __init__(self,res_dir):
+        self.root                   =   Path(res_dir)
+        self.csv                    =   self.root / "CSV"
+        self.log                    =   self.root / "Log"
+        self.html                   =   self.root / "html"
+        self.traces                 =   self.root / "Traces"
+        self.folders                =   [self.csv, self.html, self.log, self.traces]
+        for folder in self.folders:
+            folder.mkdir(parents=True, exist_ok=True)
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class simpy:
     
@@ -99,34 +117,85 @@ class simpy:
     def load_model(self):
         self.server.plecs.load(self.path)
     
+    @staticmethod
+    def _parse_blocks(lines):
+        """Tree of the 'Tag { ... }' blocks of a .plecs file: {'tag', 'props' [(key, value) in order], 'children'}."""
+        root                        =   {'tag': None, 'props': [], 'children': []}
+        stack                       =   [root]
+        for line in lines:
+            s                       =   line.strip()
+            if s.endswith('{') and s[:-1].strip().isidentifier():
+                node                =   {'tag': s[:-1].strip(), 'props': [], 'children': []}
+                stack[-1]['children'].append(node)
+                stack.append(node)
+            elif s == '}' and len(stack) > 1:
+                stack.pop()
+            elif s and not s.startswith('"'):
+                key, _, value       =   s.partition(' ')
+                stack[-1]['props'].append((key, value.strip().strip('"')))
+        return root
+
+    @staticmethod
+    def _prop(node, key):
+        return next((v for k, v in node['props'] if k == key), None)
+
     def get_scopes(self,modelname,only=None):
         """
-        Full PLECS paths ('PFC/Scopes/grid_scope', ...) of every Scope block in the model, found by walking the
+        Full PLECS paths ('PFC/Scopes/grid_scope', ...) of the Scope blocks of the model, found by walking the
         nested Component/Schematic blocks of the .plecs file, so scopes added/renamed in the model are picked up automatically.
+        Commented-out blocks are skipped, and of a Configurable Subsystem only the active configuration is walked.
         only : optional list of scope names to keep (None = all scopes, [] = none).
         Scopes inside library references are not stored in the model file and are not found.
         """
-        stack, scopes          = [], []                                         # stack: one [is_component, Type, Name] per open block
         with open(self.path, encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                s              = line.strip()
-                if s.endswith('{') and s[:-1].strip().isidentifier():
-                    stack.append([s[:-1].strip() == 'Component', None, None])
-                elif s == '}' and stack:
-                    is_comp, kind, name = stack.pop()
-                    if is_comp and kind == 'Scope':
-                        parents = [b[2] for b in stack if b[0] and b[2]]
-                        scopes.append('/'.join([modelname] + [n.replace('/', '//') for n in parents + [name]]))
-                elif stack and stack[-1][0] and (s.startswith('Type ') or s.startswith('Name ')):
-                    key, value = s.split(None, 1)
-                    stack[-1][1 if key == 'Type' else 2] = value.strip().strip('"')
+            root                    =   self._parse_blocks(f.readlines())
+        scopes                      =   []
+        esc                         =   lambda name: name.replace('/', '//')
+
+        def walk(node, parents):
+            for child in node['children']:
+                if child['tag'] != 'Component':
+                    walk(child, parents)
+                    continue
+                if self._prop(child, 'CommentOut'):
+                    continue
+                kind, name          =   self._prop(child, 'Type'), self._prop(child, 'Name')
+                if kind == 'Scope':
+                    scopes.append('/'.join([modelname] + parents + [esc(name)]))
+                elif kind == 'ConfigurableSubsystem':
+                    configs         =   next((c for c in child['children'] if c['tag'] == 'Configurations'), None)
+                    if configs is None:
+                        continue
+                    names           =   [v for k, v in configs['props'] if k == 'Name']
+                    schematics      =   [c for c in configs['children'] if c['tag'] == 'Schematic']
+                    active          =   next((self._prop(c, 'Value') for c in child['children']
+                                              if c['tag'] == 'Parameter' and self._prop(c, 'Variable') == 'Configuration'), None)
+                    if active is not None and active.isdigit() and 1 <= int(active) <= len(schematics):
+                        selected    =   [schematics[int(active) - 1]]
+                    elif active in names:
+                        selected    =   [schematics[names.index(active)]]
+                    else:                                                       # set by an expression: cannot tell offline
+                        selected    =   schematics
+                    for schematic in selected:
+                        walk(schematic, parents + [esc(name)])
+                else:
+                    walk(child, parents + [esc(name)])
+
+        walk(root, [])
         if only is not None:
-            scopes             = [p for p in scopes if p.split('/')[-1] in only]
+            scopes                  =   [p for p in scopes if p.split('/')[-1] in only]
         return scopes
 
     def ClearAllTraces(self,scopelist):
+        """Clear the traces of the scopes; scopes PLECS cannot find are skipped. Returns the scopes that exist."""
+        found                       =   []
         for val in scopelist:
-            self.server.plecs.scope(val,'ClearTraces')
+            try:
+                self.server.plecs.scope(val,'ClearTraces')
+                found.append(val)
+            except xmlrpc.client.Fault as fault:
+                print(f"WARNING: scope skipped: {fault.faultString}")
+        return found
 
     def Set_sim_param(self,mdlvars):
         self.modelvar = mdlvars
@@ -155,20 +224,6 @@ class simpy:
     def close_cnx(self,modelname):
         self.server.plecs.close(modelname) 
 
-    def logParams(self,file_path, nested_dict):
-        with open(file_path, 'a') as file:
-            self.log_parameters(file, nested_dict, parent_keys=[])
-
-    def log_parameters(self,file, nested_dict, parent_keys):
-        for key, value in nested_dict.items():
-            current_keys = parent_keys + [key]
-            if isinstance(value, dict):
-                self.log_parameters(file, value, current_keys)
-                file.write("---------------------------------------------------------------------------------------------------\n")
-            else:
-                parent_path = "[" + "][".join(current_keys) + "]"
-                file.write("{:<40}= {}\n".format(parent_path, value))
-
     def clear_data_folders(self,folder_paths):
         # Delete the files (not sub-folders) of each result folder
         for folder_path in folder_paths:
@@ -186,8 +241,34 @@ def set_nested(d, path, value):
         d                      = d[key]
     d[path[-1]]                = value
 
-def build_points(base, sweep, sweep_paths, run_id):
-    """One deep-copied ModelVars per combination of the sweep values, with derived parameters and output files updated."""
+def get_nested(d, path):
+    for key in path:
+        d                      = d[key]
+    return d
+
+def auto_batch_size(n_points, max_parallel=None, reserve=1):
+    """Sweep points per parallel batch, from the CPU threads available to this process (minus `reserve` left for the
+    OS / PLECS GUI), capped by max_parallel, then balanced so the batches are as even as possible
+    (e.g. 20 points on 15 threads -> 2 batches of 10 instead of 15 + 5)."""
+    threads                    = (os.process_cpu_count() if hasattr(os, 'process_cpu_count') else os.cpu_count()) or 1
+    workers                    = max(1, min(threads - reserve, max_parallel or threads, n_points))
+    n_batches                  = math.ceil(n_points / workers)
+    return math.ceil(n_points / n_batches)
+
+def set_output_files(mdlvar, paths, run_id, sim_idx):
+    """Output files of one run of the sweep run_id, written in mdlvar[OUTPUT_KEY]."""
+    out                        = mdlvar[OUTPUT_KEY]
+    out['sim_idx']             = sim_idx
+    out['utc_numeric']         = run_id
+    out['ToFile_path']         = (paths.csv  / f"Results_{run_id}_{sim_idx}.csv").as_posix()
+    out['logfile']             = (paths.log  / f"Log_{run_id}.log").as_posix()
+    out['output_html']         = (paths.html / f"Html_{run_id}.html").as_posix()
+    out['Traces']              = paths.traces.as_posix()
+    return mdlvar
+
+def build_points(base, sweep, sweep_paths, run_id, paths, update_derived=None):
+    """One deep-copied ModelVars per combination of the sweep values, with derived parameters (update_derived(mv),
+    optional) and output files updated. Returns a list of (label {sweep name: value}, ModelVars)."""
     points                     = []
     for sim_idx, values in enumerate(itertools.product(*sweep.values()), start=1):
         label                  = dict(zip(sweep, values))
@@ -195,39 +276,10 @@ def build_points(base, sweep, sweep_paths, run_id):
         for name, value in label.items():
             for path in sweep_paths[name]:
                 set_nested(mv, path, value)
-        mdl.update_derived(mv)
-        mdl.set_output_files(mv, run_id, sim_idx)
+        if update_derived:
+            update_derived(mv)
+        set_output_files(mv, paths, run_id, sim_idx)
         points.append((label, mv))
     return points
-
-def _flat(d, keys=()):
-    for key, value in d.items():
-        if isinstance(value, dict):
-            yield from _flat(value, keys + (key,))
-        else:
-            yield keys + (key,), value
-
-def _differs(a, b):
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return not math.isclose(a, b, rel_tol=1e-9)
-    return a != b
-
-def write_sweep_log(points, base, run_id):
-    """One log file per sweep: the base parameters once, then one section per iteration with only the parameters
-    that differ from the base (swept values and the derived parameters they change)."""
-    log_file                   = points[0][1]['ToFile']['logfile']
-    base_flat                  = dict(_flat(base))
-    fmt                        = lambda keys: "[" + "][".join(keys) + "]"
-    lines                      = [f"Sweep {run_id}: {len(points)} iterations", "=" * 99, "BASE PARAMETERS", "-" * 99]
-    lines                     += ["{:<40}= {}".format(fmt(k), v) for k, v in base_flat.items() if k[0] != 'ToFile']
-    for label, mv in points:
-        swept                  = ", ".join(f"{k}={v:g}" if isinstance(v, (int, float)) else f"{k}={v}" for k, v in label.items())
-        lines                 += ["=" * 99, f"ITERATION {mv['ToFile']['sim_idx']}/{len(points)} : {swept}",
-                                  f"results : {mv['ToFile']['ToFile_path']}", "-" * 99]
-        lines                 += ["{:<40}= {:<24} (base: {})".format(fmt(k), str(v), base_flat.get(k))
-                                  for k, v in _flat(mv) if k[0] != 'ToFile' and _differs(v, base_flat.get(k))]
-    with open(log_file, 'w') as f:
-        f.write("\n".join(lines) + "\n")
-    return log_file
 
 #?----------------------------------------------------------------------------------------------------------------------------------------

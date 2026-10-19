@@ -30,10 +30,13 @@ Model/
   PFC.plecs            PLECS model (power stage + control)
   tpbpfc_init.m        Model initialization: specs, filter, power stage, control
 Lib/
-  PFC Sweep.py         Parameter sweep driver (sequential or parallel PLECS runs)
-  Model_Parameters.py  Model paths, simulation settings and component parameters
-  plecs.py             PLECS XML-RPC interface
-  pmath.py             Signal math and HTML reports
+  sweep.py             Sweep driver: sweep definition + run flags (sweep / code generation / RT Box)   [system specific]
+  parameters.py        Model paths, component parameters, derived parameters, result waveforms      [system specific]
+  pplecs.py            PLECS XML-RPC interface, automatic scope detection, result folders, sweep points
+  pplots.py            HTML reports: waveforms, harmonic bar plots, parameter table
+  plog.py              Sweep log (base parameters + changed parameters per iteration)
+  pmath.py             Signal math: rms, average, FFT, harmonics, envelope
+  rtbox.py             PLECS Coder code generation and RT Box run
 RES/                   Sweep outputs: CSV, HTML, logs, traces (git-ignored)
 ```
 
