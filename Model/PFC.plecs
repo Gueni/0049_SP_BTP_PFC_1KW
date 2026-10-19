@@ -122,8 +122,8 @@ Plecs {
       MaskIconRotates on
       Schematic {
         Location      [0, 26; 1536, 780]
-        ZoomFactor    0.76361
-        SliderPosition [0, 0]
+        ZoomFactor    1.49864
+        SliderPosition [895, 448]
         ShowBrowser   off
         BrowserWidth  100
         Component {
@@ -2945,6 +2945,11 @@ Plecs {
             Signals       {"Input"}
           }
           Probe {
+            Component     "RL1"
+            Path          "Load Gen/dual RL"
+            Signals       {"Input"}
+          }
+          Probe {
             Component     "Out1"
             Path          "ts"
             Signals       {"Input"}
@@ -3053,7 +3058,7 @@ Plecs {
               AutoScale     1
               MinValue      0
               MaxValue      1
-              Signals       {"IL"}
+              Signals       {}
               Untangle      0
               KeepBaseline  off
               BaselineValue 0
@@ -4119,8 +4124,8 @@ Plecs {
           Probe {
             Component     "CDC"
             Path          ""
-            Signals       {"Capacitor Voltage", "Capacitor Current", "Capacito"
-"r Dissipation"}
+            Signals       {"Capacitor Dissipation", "Capacitor Voltage", "Capa"
+"citor Current"}
           }
         }
         Component {
@@ -4200,7 +4205,7 @@ Plecs {
               AutoScale     1
               MinValue      0
               MaxValue      1
-              Signals       {}
+              Signals       {"IL"}
               Untangle      0
               KeepBaseline  off
               BaselineValue 0
@@ -5487,8 +5492,8 @@ Plecs {
       Location      [0, 26; 1536, 849]
       State         "AAAA/wAAAAD9AAAAAgAAAAEAAAAAAAAAAPwCAAAAA/sAAAAQAFoAbwBvA"
 "G0AQQByAGUAYQAAAAAA/////wAAAFkA////+wAAABQAUwBhAHYAZQBkAFYAaQBlAHcAcwAAAAAA//"
-"///wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMAAAAAAP////8AAABjAP///wAAAAMAAAYAAAAAffw"
-"BAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABgAAAAKVAAAA"
+"///wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMAAAAAAP////8AAABjAP///wAAAAMAAAYAAAAAYfw"
+"BAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABgAAAAKxAAAA"
 "BAAAAAQAAAAIAAAACPwAAAABAAAAAgAAAAEAAAAOAFQAbwBvAGwAQgBhAHIBAAAAAP////8AAAAAA"
 "AAAAA=="
       SavedViews    "AAAAAgAAAAA="
@@ -5586,46 +5591,6 @@ Plecs {
       Configurations {
         Name          "Single RL"
         Schematic {
-          Component {
-            Type          Constant
-            Name          "Constant"
-            Show          off
-            Position      [75, 115]
-            Direction     right
-            Flipped       off
-            LabelPosition west
-            Frame         [-35, -10; 35, 10]
-            Parameter {
-              Variable      "Value"
-              Value         "11000"
-              Show          off
-            }
-            Parameter {
-              Variable      "DataType"
-              Value         "10"
-              Show          off
-            }
-          }
-          Component {
-            Type          Constant
-            Name          "Constant1"
-            Show          off
-            Position      [75, 90]
-            Direction     right
-            Flipped       off
-            LabelPosition west
-            Frame         [-35, -10; 35, 10]
-            Parameter {
-              Variable      "Value"
-              Value         "400"
-              Show          off
-            }
-            Parameter {
-              Variable      "DataType"
-              Value         "10"
-              Show          off
-            }
-          }
           Component {
             Type          Product
             Name          "Product"
@@ -5737,6 +5702,46 @@ Plecs {
               Show          off
             }
           }
+          Component {
+            Type          Constant
+            Name          "Constant2"
+            Show          off
+            Position      [75, 115]
+            Direction     right
+            Flipped       off
+            LabelPosition west
+            Frame         [-35, -10; 35, 10]
+            Parameter {
+              Variable      "Value"
+              Value         "Load.Pout"
+              Show          off
+            }
+            Parameter {
+              Variable      "DataType"
+              Value         "10"
+              Show          off
+            }
+          }
+          Component {
+            Type          Constant
+            Name          "Constant1"
+            Show          off
+            Position      [75, 90]
+            Direction     right
+            Flipped       off
+            LabelPosition west
+            Frame         [-35, -10; 35, 10]
+            Parameter {
+              Variable      "Value"
+              Value         "Load.Vout1"
+              Show          off
+            }
+            Parameter {
+              Variable      "DataType"
+              Value         "10"
+              Show          off
+            }
+          }
           Connection {
             Type          Signal
             SrcComponent  "Product"
@@ -5775,7 +5780,7 @@ Plecs {
           }
           Connection {
             Type          Signal
-            SrcComponent  "Constant"
+            SrcComponent  "Constant2"
             SrcTerminal   1
             Points        [160, 115; 160, 105]
             Branch {
@@ -6234,7 +6239,7 @@ Plecs {
       }
       Parameter {
         Variable      "Configuration"
-        Value         "1"
+        Value         "Load.Loadgen.Config"
         Show          off
       }
     }
@@ -6441,7 +6446,7 @@ Plecs {
       }
       Parameter {
         Variable      "Configuration"
-        Value         "1"
+        Value         "Load.Config"
         Show          off
       }
       Terminal {
@@ -15099,4 +15104,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "rivEBbyU9vwrjIdpCQIWuj31wy9FtSSorh4hDTBxEgM="
+DemoSignature "WexP4ktn1HkadYsVvzV/nZ1Hy/UsBXt42gmodsdEK4I="

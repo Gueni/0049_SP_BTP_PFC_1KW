@@ -31,12 +31,12 @@ from   rtbox            import  RTBox
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Sweep definition: every combination of the values below is simulated (keep a single value to hold a parameter fixed).
 SWEEP                                  = {
-                                          'Vin'   : [230],                       # [Vrms] grid input voltage
-                                          'Pout'  : [1000],                               # [W]    load power
-                                          'fsw'   : [65e3,70e3, 80e3, 100e3],                                    # [Hz]   fast-leg switching frequency
-                                          'L1'    : [240e-6],                                  # [H]    boost choke inductance
-                                          'Cdc'   : [470e-6],                                  # [F]    DC-link capacitance
-                                          'Tamb'  : [25],                                      # [C]    ambient temperature
+                                          'Vin'   : [230],
+                                          'Pout'  : [1000],
+                                          'fsw'   : [65e3,70e3, 80e3, 100e3],
+                                          'L1'    : [240e-6],
+                                          'Cdc'   : [470e-6],
+                                          'Tamb'  : [25],
                                          }
 #? Where each swept value is written in ModelVars (one sweep value can drive several parameters).
 SWEEP_PATHS                            = {

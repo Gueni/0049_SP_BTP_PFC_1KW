@@ -34,7 +34,7 @@ LIB_DIR                    = Path(__file__).resolve().parent                    
 ROOT_DIR                   = LIB_DIR.parent                                     # <repo>
 MODEL_NAME                 = "PFC"
 MODEL_PATH                 = ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
-MODEL_IMG_PATH             = ROOT_DIR / "doc" / "schematic.png"
+MODEL_IMG_PATH             = ROOT_DIR / "asset" / "schematic.png"
 RES_DIR                    = ROOT_DIR / "RES"                                   # results: RES/CSV, RES/Log, RES/html, RES/Traces
 F0_PATH                    = ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
 F0_OVERRIDES               = {                                                  # waveform name keyword -> its own fundamental (first match wins)
@@ -44,7 +44,7 @@ F0_OVERRIDES               = {                                                  
 #!----------------------------------------------------------------------------------------------------------------------------------------
 Sim_param 	= {                                                                                            
                   'tSim'	    	   : 0.6,                                                                                                               #? [s]     - Total simulation time
-                  'load_tflip'	   : 0.1/2,                                                                                                             #? [s]     - Time at which the load changes state 
+                  'load_tflip'	   : 0.6/2,                                                                                                             #? [s]     - Time at which the load changes state 
                   'maxStep'		   : 1e-3,                                                                                                              #? [s]     - Maximum simulation time step
                   'ZeroCross'       : 1000,                                                                                                              #? [/]     - Zero-crossing detection limit
                   'rel_tol'		   : 1e-7                                                                                                               #? [/]     - Relative tolerance for the numerical solver
@@ -54,7 +54,8 @@ Configs     = {
                   'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
                   'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC.
                   'DCLink'          : 4,                                                                                                                 #? [/]      - Config of the DCLink (2 = capacitor with ESR).
-                  'Load'            : 1                                                                                                                  #? [/]      - Config of the Load.
+                  'Load'            : 1,                                                                                                                 #? [/]      - Config of the Load.
+                  'Loadgen'         : 1                                                                                                                  #? [/]      - Config of the Load generator.
 
                }
 ToFile      = {                     
@@ -232,8 +233,12 @@ Load        = {
                      'Vinit'                 : 0,                                                                                                        #? [V]      - Initial voltage across the load
                      'Iinit'                 : 0,                                                                                                        #? [A]      - Initial current through the load
                      't_switch'              : Sim_param['tSim'] - Sim_param['load_tflip'],                                                              #? [s]      - Time when the load switching occurs
-                     't_dead'                : (Sim_param['tSim'] - Sim_param['load_tflip']) / 2                                                         #? [s]      - Dead time for load switching
-                  }
+                     't_dead'                : (Sim_param['tSim'] - Sim_param['load_tflip']) / 2 ,                                                       #? [s]      - Dead time for load switching
+                     'Loadgen'               : {
+                                                'Config' : Configs['Loadgen'],                                                                                                  #? [/]      - Load generator configuration
+                                                }
+                        
+               }
 Thermals    = {
                      'T_amb'                 : 25.0,                                                                                                     #? [°C]     - Ambient temperature
                      'rth_Amb'               : 0.09                                                                                                      #? [K/W]    - Thermal resistance from junction to ambient
