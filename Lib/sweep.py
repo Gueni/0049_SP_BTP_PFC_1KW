@@ -34,7 +34,7 @@ from   rtbox            import  RTBox
 SWEEP                                  = {
                                           'Vin'   : [230],
                                           'Pout'  : [500, 1000],
-                                          'fsw'   : [70e3, 80e3, 100e3],
+                                          'fsw'   : [80e3, 100e3],
                                           'L1'    : [240e-6],
                                           'Cdc'   : [470e-6],
                                           'Tamb'  : [25],
