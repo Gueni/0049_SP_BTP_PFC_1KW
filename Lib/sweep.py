@@ -33,8 +33,8 @@ from   rtbox            import  RTBox
 #? Sweep definition: every combination of the values below is simulated (keep a single value to hold a parameter fixed).
 SWEEP                                  = {
                                           'Vin'   : [230],
-                                          'Pout'  : [500, 1000],
-                                          'fsw'   : [80e3, 100e3],
+                                          'Pout'  : [1e3],
+                                          'fsw'   : [100e3],
                                           'L1'    : [240e-6],
                                           'Cdc'   : [470e-6],
                                           'Tamb'  : [25],
@@ -55,7 +55,7 @@ RTBOX                                  = False                                  
 SCOPES                                 = None                                                    # scope names to clear/hold/save: None = all scopes in the model, [] = none
 HOLD_TRACES                            = True                                                  # hold traces after each simulation point, to save them all at the end
 SAVE_TRACES                            = False                                                 # save all traces at the end of the sweep        
-PARASIM                                = True                                                  # run several sweep points in parallel
+PARASIM                                = False                                                  # run several sweep points in parallel
 PARANUM                                = None                                                  # max sweep points per parallel batch (None = auto from the CPU threads)
 
 ANALYSIS_NAME                          = ''                                                    # PLECS analysis name, for plcsim.launch_analysis
