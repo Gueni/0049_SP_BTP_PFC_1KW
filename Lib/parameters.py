@@ -42,8 +42,8 @@ F0_OVERRIDES   =  {                                                  # waveform 
                               'HS1'   : ('CTRL', 'fsw'),                        # fast leg switches at fsw
                               'LS1'   : ('CTRL', 'fsw'),
                              }
-TSIM           = 1                                                  # simulation time [s]
-TSAVE          = TSIM - 0.02                                               # time point at which the data is saved [s]
+TSIM           = 0.4                                                # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
+TSAVE          = TSIM - 0.05                                               # time point at which the data is saved [s]
 #!----------------------------------------------------------------------------------------------------------------------------------------
 Sim_param 	   =  {                                                                                            
                   'tSim'	    	   : TSIM,                                                                                                               #? [s]     - Total simulation time
@@ -56,8 +56,8 @@ Configs        =  {
                   'Grid'            : 1,                                                                                                                 #? [/]      - Config of the Grid.
                   'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
                   'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC (1 TPB, 2 PFC, 3 PFC D, 4 Pass).
-                  'DCLink'          : 2,                                                                                                                 #? [/]      - Config of the DCLink (2 = capacitor with ESR; 4 adds the ESL, a stiff 1 pH pole that slows the solver).
-                  'Load'            : 1,                                                                                                                 #? [/]      - Config of the Load.
+                  'DCLink'          : 1,                                                                                                                 #? [/]      - Config of the DCLink (Passives/C: 1 ESR+ESL, 2 Ideal, 3 Pass).
+                  'Load'            : 3,                                                                                                                 #? [/]      - Config of the Load.
                   'Loadgen'         : 1                                                                                                                  #? [/]      - Config of the Load generator.
 
                }
@@ -99,20 +99,20 @@ AC_Filter      =  {                                                             
                      'i2'         : 0                                                                                                                 #? [A]      - Initial current in winding 2
                   },
                   'Cx'            : {                                                                                                                 # X2 capacitor, grid side (Passives/C)
-                     'Config'     : 1,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short (ideal: damping is explicit, faster simulation)
+                     'Config'     : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (ideal: damping is explicit, faster simulation)
                      'Cap_s'      : 1e-6,                                                                                                             #? [F]      - X2 film capacitance, 1 uF / 310 VAC
-                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 2/4)
-                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 1)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
                      'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
                   },
                   'Cx1'           : {                                                                                                                 # X2 capacitor, PFC side (Passives/C)
-                     'Config'     : 1,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short (ideal: damping is explicit, faster simulation)
+                     'Config'     : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (ideal: damping is explicit, faster simulation)
                      'Cap_s'      : 1e-6,                                                                                                             #? [F]      - X2 film capacitance, 1 uF / 310 VAC
-                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 2/4)
-                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 1)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
@@ -121,20 +121,20 @@ AC_Filter      =  {                                                             
                   'Rd'            : 10,                                                                                                               #? [Ohm]    - Damping resistor in series with Cd across Cx1 (~0.6 * sqrt(L_stage2 / Cx1))
                   'Cd'            : 4e-6,                                                                                                             #? [F]      - Damping capacitor (n = Cd / Cx1 = 4), X2 film 4 uF
                   'Cy1'           : {                                                                                                                 # Y capacitor line -> PE (Passives/C)
-                     'Config'     : 1,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short (ideal: damping is explicit, faster simulation)
+                     'Config'     : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (ideal: damping is explicit, faster simulation)
                      'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
-                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 2/4)
-                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 1)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
                      'Iinit'      : 0                                                                                                                 #? [A]      - Initial current
                   },
                   'Cy2'           : {                                                                                                                 # Y capacitor neutral -> PE (Passives/C)
-                     'Config'     : 1,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass, 6 Short (ideal: damping is explicit, faster simulation)
+                     'Config'     : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (ideal: damping is explicit, faster simulation)
                      'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
-                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 2/4)
-                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 3/4)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Lesl_s'     : 5e-9,                                                                                                             #? [H]      - Equivalent series inductance (used with Config 1)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
@@ -152,19 +152,26 @@ Switches       =  {
                      'ron_mosfet'     : 21e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0021120K: 21 mOhm typ, 1200 V / 100 A)
                      'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
                      'Coss'           : {                                                                                                             # output capacitance (Passives/C)
-                        'Config'  : 5,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass (Coss off), 6 Short
+                        'Config'  : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (Passives/C)
                         'Cap_s'   : 180e-12,                                                                                                          #? [F]      - Coss at 800 V (C3M0021120K: 180 pF)
-                        'Resr_s'  : 1e-12,                                                                                                            #? [Ohm]    - Equivalent series resistance
-                        'Lesl_s'  : 1e-12,                                                                                                            #? [H]      - Equivalent series inductance
+                        'Resr_s'  : 0.5,                                                                                                              #? [Ohm]    - Equivalent series resistance (damps the Coss loop)
+                        'Lesl_s'  : 2e-9,                                                                                                             #? [H]      - Equivalent series inductance (package / power loop)
                         'Npara'   : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                         'Nseri'   : 1,                                                                                                                #? [/]      - Number of series capacitors
                         'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
                         'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
                      },
-                     'therm_body_diode': 'file:C3M0021120K_bodydiode',                                                                                #? [/]      - Thermal description of the body diode (Config 2)
-                     'ron_body_diode' : 5e-3,                                                                                                         #? [Ohm]    - Body diode on-state resistance (Config 2)
-                     'Rdb_off'        : 0,                                                                                                            #? [Ohm]    - Body diode off-state resistance
-                     'vf_body_diode'  : 4.5,                                                                                                          #? [V]      - Body diode forward voltage
+                     'therm_body_diode': {                                                                                                            # body diode (Switches/D)
+                        'Config'        : 1,                                                                                                          #? [/]      - Diode config: 1 Diode Thermal, 2 Diode Simple, 3 Pass, 4 Short
+                        'therm_diode'   : 'file:C3M0021120K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib)
+                        'vf_diode'      : 4.5,                                                                                                        #? [V]      - Body diode forward voltage
+                        'ron_diode'     : 5e-3,                                                                                                       #? [Ohm]    - Body diode on-state resistance
+                        't_init'        : 25,                                                                                                         #? [°C]     - Initial junction temperature of the body diode
+                        'num_par_diode' : 1,                                                                                                          #? [/]      - Number of parallel diodes
+                        'Case_Cth'      : 0,                                                                                                          #? [J/K]    - Thermal capacitance of the diode case node (0: no extra thermal state, ~4x faster)
+                        'Case_Tinit'    : 25,                                                                                                         #? [°C]     - Initial temperature of the diode case node
+                        'Case_Amb_rth'  : 0.1                                                                                                         #? [K/W]    - Thermal resistance diode case -> switch thermal port
+                     },
                      'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
                      'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
                      'Tamb'           : 25,                                                                                                           #? [°C]     - Ambient temperature
@@ -182,19 +189,26 @@ Switches       =  {
                      'ron_mosfet'     : 15e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0015065K: 15 mOhm typ, 650 V / 120 A)
                      'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
                      'Coss'           : {                                                                                                             # output capacitance (Passives/C)
-                        'Config'  : 5,                                                                                                                #? [/]      - 1 Ideal, 2 ESR, 3 ESL, 4 ESR+ESL, 5 Pass (Coss off), 6 Short
+                        'Config'  : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (Passives/C)
                         'Cap_s'   : 289e-12,                                                                                                          #? [F]      - Coss at 400 V (C3M0015065K: 289 pF)
-                        'Resr_s'  : 1e-12,                                                                                                            #? [Ohm]    - Equivalent series resistance
-                        'Lesl_s'  : 1e-12,                                                                                                            #? [H]      - Equivalent series inductance
+                        'Resr_s'  : 0.5,                                                                                                              #? [Ohm]    - Equivalent series resistance (damps the Coss loop)
+                        'Lesl_s'  : 2e-9,                                                                                                             #? [H]      - Equivalent series inductance (package / power loop)
                         'Npara'   : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                         'Nseri'   : 1,                                                                                                                #? [/]      - Number of series capacitors
                         'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
                         'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
                      },
-                     'therm_body_diode': 'file:C3M0015065K_bodydiode',                                                                                #? [/]      - Thermal description of the body diode (Config 2)
-                     'ron_body_diode' : 5e-3,                                                                                                         #? [Ohm]    - Body diode on-state resistance (Config 2)
-                     'Rdb_off'        : 0,                                                                                                            #? [Ohm]    - Body diode off-state resistance
-                     'vf_body_diode'  : 4.5,                                                                                                          #? [V]      - Body diode forward voltage
+                     'therm_body_diode': {                                                                                                            # body diode (Switches/D)
+                        'Config'        : 1,                                                                                                          #? [/]      - Diode config: 1 Diode Thermal, 2 Diode Simple, 3 Pass, 4 Short
+                        'therm_diode'   : 'file:C3M0015065K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib)
+                        'vf_diode'      : 4.5,                                                                                                        #? [V]      - Body diode forward voltage
+                        'ron_diode'     : 5e-3,                                                                                                       #? [Ohm]    - Body diode on-state resistance
+                        't_init'        : 25,                                                                                                         #? [°C]     - Initial junction temperature of the body diode
+                        'num_par_diode' : 1,                                                                                                          #? [/]      - Number of parallel diodes
+                        'Case_Cth'      : 0,                                                                                                          #? [J/K]    - Thermal capacitance of the diode case node (0: no extra thermal state, ~4x faster)
+                        'Case_Tinit'    : 25,                                                                                                         #? [°C]     - Initial temperature of the diode case node
+                        'Case_Amb_rth'  : 0.1                                                                                                         #? [K/W]    - Thermal resistance diode case -> switch thermal port
+                     },
                      'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
                      'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
                      'Tamb'           : 25,                                                                                                           #? [°C]     - Ambient temperature
@@ -225,7 +239,7 @@ DCLink         =  {
                       'Config'		   : Configs['DCLink'],                                                                                              #? [/]      - Capacitance configuration
                       'Cap_s'    		: 47e-6,                                                                                                         #? [F]      - Capacitance value 
                       'Resr_s'		   : 50e-3,                                                                                                          #? [Ohm]    - Equivalent series resistance of the capacitance
-                      'Lesl_s'		   : 1e-12,                                                                                                          #? [H]      - Equivalent series inductance of the capacitance
+                      'Lesl_s'		   : 20e-9,                                                                                                        #? [H]      - Equivalent series inductance of the capacitance
                       'Npara'		      : 10,                                                                                                              #? [/]      - Number of parallel capacitors
                       'Nseri'		      : 1,                                                                                                              #? [/]      - Number of series capacitors
                       'Vinit'		      : -2**0.5 * Grid['Vin'],                                                                                          #? [V]      - Initial voltage: line peak, inrush bypass assumed (negative: CDC is placed flipped)
@@ -273,7 +287,10 @@ CTRL           =  {
                      'Dmax'                  : 0.98,                                                                                                     #? [/]     - Maximum duty of the active fast-leg switch
                      'Vzc'                   : 20,                                                                                                       #? [V]     - |Vac| below which all gates are blanked (zero crossing)
                      'eps_s'                 : 0.1,                                                                                                      #? [V]     - Offset in sign(vac) = vac/(|vac|+eps_s)
-                     't_ss'                  : 0.2                                                                                                       #? [s]     - Soft-start ramp time of Vref from sqrt(2)*Vin to Vref
+                     't_ss'                  : 0.05,                                                                                                     #? [s]     - Soft-start ramp time of Vref from sqrt(2)*Vin to Vref
+                     't_en'                  : 1e-3,                                                                                                     #? [s]     - Controller enable: gates off and Iref = 0 until the sensors / ADC readings are valid
+                     'P0'                    : 0,                                                                                                        #? [W]     - Initial value of the voltage-loop integrator (power command at enable)
+                     't_car'                 : 15/16/80e3                                                                                                #? [s]     - PWM carrier delay: ADC samples Ts/16 after the valley (compensates the current-sensor delay)
                   }
 Load           =  {
                      'Config'                : Configs['Load'],                                                                                          #? [/]      - Configuration type for the load setup
@@ -282,7 +299,7 @@ Load           =  {
                      'Vout2'                 : 400,                                                                                                      #? [V]      - Load voltage (second step)
                      'CL'                    : 0,                                                                                                        #? [F]      - Load capacitance value
                      'R'                     : 400**2 / 1e3,                                                                                             #? [Ohm]    - Load resistance value
-                     'L'                     : 0,                                                                                                        #? [H]      - Load inductance value
+                     'L'                     : 10e-6,                                                                                                    #? [H]      - Load inductance value (> 0: the RL loads, Config 3/4, are singular with L = 0)
                      'Vinit'                 : 0,                                                                                                        #? [V]      - Initial voltage across the load
                      'Iinit'                 : 0,                                                                                                        #? [A]      - Initial current through the load
                      't_switch'              : Sim_param['tSim'] - Sim_param['load_tflip'],                                                              #? [s]      - Time when the load switching occurs
