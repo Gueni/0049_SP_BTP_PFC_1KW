@@ -41,24 +41,30 @@ The grid is an ideal sine source, `√2 · Vin · sin(2π · f · t)`, with a se
 
 ![EMI filter, 1PH configuration](asset/EMI_Filter.png)
 
-A two-stage single-phase filter, library block `Power/EMI FILTER`. It has three configurations: `1 = 1PH` (used), `2 = 3PH` and `3 = Pass`. The signal path is CMC → Cx, with Cy1/Cy2 to PE → series inductors L1/L5 → DMC → Cx1.
+A two-stage differential-mode (DM) filter with a common-mode choke, library block `Power/EMI FILTER`. It has three configurations: `1 = 1PH` (used), `2 = 3PH` and `3 = Pass`. The signal path is:
+
+CMC → Cx, with Cy1/Cy2 to PE → series inductors L1/L5 → DMC → Cx1 ∥ (Rd + Cd) → PFC
 
 | Part | Value | Part type |
 |---|---|---|
-| CMC | 4.7 mH per winding, k = 0.995 (23.5 µH leakage), 30 mΩ | nanocrystalline, 10 A |
-| DMC | 100 µH per winding, uncoupled, 25 mΩ | powder core, 10 A |
-| L1, L5 (`Ll`) | 10 µH | line / neutral series inductance |
-| Cx, Cx1 | 470 nF, ESR 15 mΩ | X2 film, 310 VAC |
-| Cy1, Cy2 | 2.2 nF, ESR 0.2 Ω | Y1 ceramic (leakage 0.18 mA at 265 V) |
+| CMC | 4.7 mH per winding, k = 0.995, 30 mΩ | nanocrystalline, 10 A; its 23.5 µH leakage per winding is the stage-1 DM inductance |
+| DMC | 120 µH per winding, uncoupled, 25 mΩ | powder core, 10 A |
+| L1, L5 (`Ll`) | 2 µH | wiring between the stages |
+| Cx (grid side), Cx1 (PFC side) | 1 µF each | X2 film, 310 VAC (separate structs `AC_Filter.Cx`, `AC_Filter.Cx1`) |
+| Rd + Cd across Cx1 | 10 Ω + 4 µF | parallel RC damper of stage 2 (n = Cd / Cx1 = 4, Rd ≈ 0.6 · √(L / Cx1)) |
+| Cy1, Cy2 | 2.2 nF each | Y1 ceramic (leakage 0.18 mA at 265 V) |
 
 | Figure | Value |
 |---|---|
-| DM resonance (≈ 267 µH, Cx1) | ≈ 14 kHz, ≈ 30 dB attenuation at 80 kHz from this stage alone |
-| CM resonance (4.7 mH, Cy1 + Cy2) | ≈ 35 kHz |
-| X-capacitor reactive current | 78 mA at 265 V |
+| Stage 1 (47 µH, Cx) | ≈ 23 kHz |
+| Stage 2 (244 µH, Cx1) | ≈ 10 kHz, characteristic impedance 15.6 Ω, damped by Rd + Cd |
+| DM attenuation at 2 · fsw = 160 kHz | ≈ 80 dB |
+| Grid current at 230 V / 1 kW | PF 0.9994, THD 1.9 % (1 s simulation) |
 
-> [!NOTE]
-> The filter is lightly damped in simulation (Q ≈ 190, no core losses). If the input current rings near the zero crossings, add an R–C damping branch across Cx1 (≈ 24 Ω with 1–2 µF).
+The capacitors use the ideal model (`Config` 1): the damping comes from Rd + Cd, and leaving out the nanosecond ESR poles keeps the simulation fast.
+
+> [!IMPORTANT]
+> The controller measures vac and iL at the PFC terminals (probes `PFC` → `Input Voltage` / `Input Current`), not at the grid. If the current loop measures the grid current instead, it is closed through the filter's LC resonances, which are close to its 8 kHz crossover, and the converter runs away.
 
 ### Coupled inductors (CMC, DMC, boost choke)
 
@@ -139,7 +145,7 @@ The gains are recomputed by `Derived.update()` in `derived.py` whenever a sweep 
 |---|---|
 | Simulation time | 0.6 s |
 | Saved window | 0.4 s → 0.6 s (`ToFile.tsave`) |
-| Solver | variable step, max step 1 ms, rel. tol. 1e-7, zero-crossing limit 1000 |
+| Solver | variable step, max step 1 ms, rel. tol. 1e-3, zero-crossing limit 1000 (1 s simulated in ≈ 1 min) |
 
 ## Running a sweep
 

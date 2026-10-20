@@ -9274,7 +9274,7 @@ Plecs {
             LabelPosition south
             Parameter {
               Variable      "Tag"
-              Value         "A"
+              Value         "Sign"
               Show          off
             }
             Parameter {
@@ -10008,6 +10008,30 @@ Plecs {
               Show          off
             }
           }
+          Component {
+            Type          Goto
+            Name          "Goto Sign"
+            Show          off
+            Position      [345, 445]
+            Direction     right
+            Flipped       off
+            LabelPosition south
+            Parameter {
+              Variable      "Tag"
+              Value         "Sign"
+              Show          off
+            }
+            Parameter {
+              Variable      "Visibility"
+              Value         "2"
+              Show          off
+            }
+            Parameter {
+              Variable      "NoMatchingCounterpartAction"
+              Value         "3"
+              Show          off
+            }
+          }
           Connection {
             Type          Signal
             SrcComponent  "Clock"
@@ -10477,8 +10501,16 @@ Plecs {
             Type          Signal
             SrcComponent  "Sign"
             SrcTerminal   1
-            DstComponent  "Irect"
-            DstTerminal   3
+            Points        [325, 480]
+            Branch {
+              DstComponent  "Irect"
+              DstTerminal   3
+            }
+            Branch {
+              Points        [325, 445]
+              DstComponent  "Goto Sign"
+              DstTerminal   1
+            }
           }
           Connection {
             Type          Signal
@@ -14164,48 +14196,6 @@ Plecs {
     }
     Component {
       Type          PlecsProbe
-      Name          "Vac"
-      Show          on
-      Position      [-40, 270]
-      Direction     right
-      Flipped       off
-      LabelPosition west
-      Probe {
-        Component     "EVSE/GRID"
-        Path          ""
-        Signals       {"VL1"}
-      }
-    }
-    Component {
-      Type          PlecsProbe
-      Name          "Vdc"
-      Show          on
-      Position      [-40, 310]
-      Direction     right
-      Flipped       off
-      LabelPosition west
-      Probe {
-        Component     "Vm1"
-        Path          ""
-        Signals       {"Measured voltage"}
-      }
-    }
-    Component {
-      Type          PlecsProbe
-      Name          "Iin"
-      Show          on
-      Position      [-40, 350]
-      Direction     right
-      Flipped       off
-      LabelPosition west
-      Probe {
-        Component     "EVSE/GRID"
-        Path          ""
-        Signals       {"IL1"}
-      }
-    }
-    Component {
-      Type          PlecsProbe
       Name          "Probe1"
       Show          off
       Position      [165, 390]
@@ -14213,9 +14203,9 @@ Plecs {
       Flipped       off
       LabelPosition south
       Probe {
-        Component     "EVSE/GRID"
+        Component     "PFC"
         Path          ""
-        Signals       {"VL1"}
+        Signals       {"Input Voltage"}
       }
       Probe {
         Component     "Vm1"
@@ -14223,9 +14213,9 @@ Plecs {
         Signals       {"Measured voltage"}
       }
       Probe {
-        Component     "EVSE/GRID"
+        Component     "PFC"
         Path          ""
-        Signals       {"IL1"}
+        Signals       {"Input Current"}
       }
     }
     Component {
