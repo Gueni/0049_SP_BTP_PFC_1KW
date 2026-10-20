@@ -680,160 +680,6 @@ Plecs {
             Signals       {}
           }
           Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS1/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS2/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS1/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS2/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS1/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS2/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS3/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS1/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS2/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS3/Real SW Seperate BD/D/Dio"
-"de Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC Diodes/HS1/Real SW Seperate BD/D/Di"
-"ode Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC Diodes/HS2/Real SW Seperate BD/D/Di"
-"ode Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC Diodes/LS1/Real SW Seperate BD/D/Di"
-"ode Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "D1"
-            Path          "PFC/1PH TPB PFC Diodes/LS2/Real SW Seperate BD/D/Di"
-"ode Thermal"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS3/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS3/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC Diodes/HS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC Diodes/HS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC Diodes/LS1/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
-            Component     "FET1"
-            Path          "PFC/1PH TPB PFC Diodes/LS2/Real SW Seperate BD"
-            Signals       {}
-          }
-          Probe {
             Component     "S1"
             Path          "PFC/1PH TPB PFC 2 Leg/HS1/Ideal SW"
             Signals       {}
@@ -14512,6 +14358,10 @@ Plecs {
 "00ff;\">Single Phase Bridgless Totem-Pole PFC</span></p></body></html>"
       Position      [275, 100]
     } 
+    Annotation {
+      Name          "<html><body>\n<p>make this a u function</p></body></html>"
+      Position      [940, 330]
+    } 
   }
 }
-DemoSignature "eOD6ajF+EsyoPYjLsrMdxco1/Py0BDy2IgDcx81EnGo="
+DemoSignature "8K5fin5++gO5LKSCQbpmMfrK6fDhQ5qQYTvLNyxIuT0="

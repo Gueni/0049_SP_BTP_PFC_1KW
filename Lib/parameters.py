@@ -56,7 +56,7 @@ Configs        =  {
                   'Grid'            : 1,                                                                                                                 #? [/]      - Config of the Grid.
                   'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
                   'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC (1 TPB, 2 PFC, 3 PFC D, 4 Pass).
-                  'PFC_SW'          : 3,                                                                                                                 #? [/]      - Config of the PFC switches (Switches/FET: 1 Real SW + separate body diode, 2 Ideal, 3 Physical equivalent circuit).
+                  'PFC_SW'          : 3,                                                                                                                 #? [/]      - Config of the PFC switches (Switches/FET: 1 Real SW + Coss + body diode, 2 Ideal, 3 Physical equivalent circuit).
                   'DCLink'          : 1,                                                                                                                 #? [/]      - Config of the DCLink (Passives/C: 1 ESR+ESL, 2 Ideal, 3 Pass).
                   'Load'            : 1                                                                                                                 #? [/]      - Config of the Load.
                }
@@ -144,7 +144,7 @@ AC_Filter      =  {                                                             
 #! PFC['SW'] takes a copy of the device selected by PFC_SWITCH.
 Switches       =  {
                   'C3M0021120K'    : {                                                                                                                # Wolfspeed C3M0021120K, 1200 V / 100 A / 21 mOhm SiC MOSFET (selected)
-                     'Config'         : Configs['PFC_SW'],                                                                                            #? [/]      - FET config: 1 Real SW + separate body diode, 2 Ideal, 3 Physical equivalent circuit (fields Drv ... BodyDiode below)
+                     'Config'         : Configs['PFC_SW'],                                                                                            #? [/]      - FET config: 1 Real SW (+ Coss, body diode), 2 Ideal, 3 Physical equivalent circuit (fields Drv ... Th below)
                      'therm_mosfet'   : 'file:C3M0021120K',                                                                                           #? [/]      - Thermal description of the switch (Thermal Lib)
                      'Rgon'           : 2.5,                                                                                                          #? [Ohm]    - External turn-on gate resistance
                      'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
@@ -160,8 +160,9 @@ Switches       =  {
                         'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
                         'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
                      },
-                     'therm_body_diode': {                                                                                                            # body diode (Switches/D)
-                        'Config'        : 1,                                                                                                          #? [/]      - Diode config (used by FET config 1): 1 Diode Thermal, 2 Pass, 3 Short
+                     'therm_body_diode': {                                                                                                            # body diode (Switches/D), used by FET configs 1 and 3
+                        'Config'        : 2 if Configs['PFC_SW'] == 3 else 1,                                                                         #? [/]      - Diode config: 1 Diode Thermal, 2 Physical Discrete (physical with the physical FET)
+                        #! ---- config 1: Diode Thermal
                         'therm_diode'   : 'file:C3M0021120K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib)
                         'vf_diode'      : 4.5,                                                                                                        #? [V]      - Body diode forward voltage
                         'ron_diode'     : 5e-3,                                                                                                       #? [Ohm]    - Body diode on-state resistance
@@ -169,7 +170,32 @@ Switches       =  {
                         'num_par_diode' : 1,                                                                                                          #? [/]      - Number of parallel diodes
                         'Case_Cth'      : 0,                                                                                                          #? [J/K]    - Thermal capacitance of the diode case node (0: no extra thermal state, ~4x faster)
                         'Case_Tinit'    : 25,                                                                                                         #? [°C]     - Initial temperature of the diode case node
-                        'Case_Amb_rth'  : 0.1                                                                                                         #? [K/W]    - Thermal resistance diode case -> switch thermal port
+                        'Case_Amb_rth'  : 0.1,                                                                                                        #? [K/W]    - Thermal resistance diode case -> switch thermal port
+                        #! ---- config 2: Physical Discrete (charge-control reverse recovery), used as a die-level body diode
+                        'nPara'         : 1,                                                                                                          #? [/]      - Number of parallel diodes (= nPara of the switch)
+                        'VI'            : {                                                                                                           # forward curve at Vgs = -4 V (vendor table), I = 0 column = knee voltage
+                           'T'          : [-40, 25, 175],                                                                                             #? [°C]     - Temperature axis
+                           'I'          : [0, 0.5, 2, 5, 8, 15, 20, 30, 40, 60, 80, 100, 120, 140, 160, 180, 200],                                    #? [A]      - Current axis
+                           'V'          : [[2.85, 3.00, 3.50, 3.90, 4.15, 4.60, 4.77, 5.10, 5.42, 5.90, 6.30, 6.59, 6.90, 7.14, 7.40, 7.60, 7.84],    #? [V]      - Forward voltage, one row per temperature
+                                           [2.75, 2.90, 3.15, 3.50, 3.75, 4.10, 4.30, 4.66, 4.89, 5.37, 5.77, 6.10, 6.40, 6.65, 6.90, 7.13, 7.35],
+                                           [2.30, 2.45, 2.74, 3.10, 3.30, 3.60, 3.80, 4.12, 4.40, 4.78, 5.16, 5.46, 5.75, 6.00, 6.25, 6.47, 6.70]]
+                        },
+                        'Ron'           : 0.012,                                                                                                      #? [Ohm]    - Storage-phase branch resistance
+                        'RR'            : {                                                                                                           # datasheet recovery test (its Qrr of 928 nC includes Coss -> trr + Irrm used)
+                           'IF'         : 50,                                                                                                         #? [A]      - Forward current
+                           'didt'       : 2600e6,                                                                                                     #? [A/s]    - Turn-off slope
+                           'Irrm'       : 42,                                                                                                         #? [A]      - Peak reverse current (0 = no stored charge)
+                           'trr'        : 34e-9,                                                                                                      #? [s]      - Reverse recovery time (0 -> Qrr used)
+                           'Qrr'        : 0,                                                                                                          #? [C]      - Junction recovery charge
+                           'Tmeas'      : 175,                                                                                                        #? [°C]     - Test junction temperature
+                           'ktau'       : 2.0                                                                                                         #? [/]      - Lifetime temperature exponent
+                        },
+                        'Cj'            : {'V': [0], 'C': [1e-12]},                                                                                   #? [V],[F]  - Junction capacitance (already part of Coss)
+                        'Roff'          : 1e9,                                                                                                        #? [Ohm]    - Leakage resistance
+                        'Aval'          : {'Vbr': 0, 'Rav': 1},                                                                                       #? [V],[Ohm] - Disabled (avalanche is in the channel model)
+                        'FR'            : {'Vfr': 0, 'IF': 1, 'tfr': 0},                                                                              #? [V],[A],[s] - No forward recovery
+                        'Pkg'           : {'La': 0, 'Lk': 0, 'Rp': 100},                                                                              #? [H],[H],[Ohm] - No package: the FET package is in series
+                        'Th'            : {'Rth': [1e-3], 'Cth': [1e-4], 'Tinit': 25}                                                                 #? [K/W],[J/K],[°C] - Die -> FET junction (same die: near zero)
                      },
                      'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
                      'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
@@ -234,31 +260,6 @@ Switches       =  {
                         'Rth'     : [0.0441, 0.104, 0.06378, 0.1121],                                                                                 #? [K/W]    - Cauer resistances
                         'Cth'     : [0.002214, 0.0126, 0.03416, 0.1294],                                                                              #? [J/K]    - Cauer capacitances
                         'Tinit'   : 25                                                                                                                #? [°C]     - Initial temperature
-                     },
-                     'BodyDiode'      : {                                                                                                             # body diode, charge-control reverse recovery (Switches/D config 5)
-                        'Config'  : 4,                                                                                                                #? [/]      - Fixed: die-level diode
-                        'nPara'   : 1,                                                                                                                #? [/]      - Overwritten with nPara of the switch
-                        'VI'      : {                                                                                                                 # forward curve at Vgs = -4 V (vendor table), I = 0 column = knee voltage
-                           'T'    : [-40, 25, 175],                                                                                                   #? [°C]     - Temperature axis
-                           'I'    : [0, 0.5, 2, 5, 8, 15, 20, 30, 40, 60, 80, 100, 120, 140, 160, 180, 200],                                          #? [A]      - Current axis
-                           'V'    : [[2.85, 3.00, 3.50, 3.90, 4.15, 4.60, 4.77, 5.10, 5.42, 5.90, 6.30, 6.59, 6.90, 7.14, 7.40, 7.60, 7.84],          #? [V]      - Forward voltage, one row per temperature
-                                     [2.75, 2.90, 3.15, 3.50, 3.75, 4.10, 4.30, 4.66, 4.89, 5.37, 5.77, 6.10, 6.40, 6.65, 6.90, 7.13, 7.35],
-                                     [2.30, 2.45, 2.74, 3.10, 3.30, 3.60, 3.80, 4.12, 4.40, 4.78, 5.16, 5.46, 5.75, 6.00, 6.25, 6.47, 6.70]]
-                        },
-                        'Ron'     : 0.012,                                                                                                            #? [Ohm]    - Storage-phase branch resistance
-                        'RR'      : {                                                                                                                 # datasheet recovery test (its Qrr of 928 nC includes Coss -> trr + Irrm used)
-                           'IF'    : 50,                                                                                                              #? [A]      - Forward current
-                           'didt'  : 2600e6,                                                                                                          #? [A/s]    - Turn-off slope
-                           'Irrm'  : 42,                                                                                                              #? [A]      - Peak reverse current (0 = no stored charge)
-                           'trr'   : 34e-9,                                                                                                           #? [s]      - Reverse recovery time (0 -> Qrr used)
-                           'Qrr'   : 0,                                                                                                               #? [C]      - Junction recovery charge
-                           'Tmeas' : 175,                                                                                                             #? [°C]     - Test junction temperature
-                           'ktau'  : 2.0                                                                                                              #? [/]      - Lifetime temperature exponent
-                        },
-                        'Cj'      : {'V': [0], 'C': [1e-12]},                                                                                         #? [V],[F]  - Junction capacitance (already part of Coss)
-                        'Roff'    : 1e9,                                                                                                              #? [Ohm]    - Leakage resistance
-                        'Aval'    : {'Vbr': 0, 'Rav': 1},                                                                                             #? [V],[Ohm] - Disabled (avalanche is in the channel model)
-                        'FR'      : {'Vfr': 0, 'IF': 1, 'tfr': 0}                                                                                     #? [V],[A],[s] - No forward recovery
                      }
                   }
                }
