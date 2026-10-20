@@ -57,9 +57,7 @@ Configs        =  {
                   'AC_Filter'       : 1,                                                                                                                 #? [/]      - Config of the AC filter (1 = 1PH, 2 = 3PH, 3 = Pass).
                   'PFC'             : 1,                                                                                                                 #? [/]      - Config of the PFC (1 TPB, 2 PFC, 3 PFC D, 4 Pass).
                   'DCLink'          : 1,                                                                                                                 #? [/]      - Config of the DCLink (Passives/C: 1 ESR+ESL, 2 Ideal, 3 Pass).
-                  'Load'            : 3,                                                                                                                 #? [/]      - Config of the Load.
-                  'Loadgen'         : 1                                                                                                                  #? [/]      - Config of the Load generator.
-
+                  'Load'            : 1                                                                                                                 #? [/]      - Config of the Load.
                }
 ToFile         =  {                     
                   'Ts'              : 0,                                                                                                                 #? [s]     - Sampling time for saving data
@@ -71,7 +69,7 @@ Grid           =  {                                                             
                   'Ts'              : 1/80e3,                                                                                                            #? [s]     - Sampling time for grid operations
                   'f'               : 50,                                                                                                                #? [Hz]    - Grid frequency
                   'phase'           : 0,                                                                                                                 #? [rad]   - Grid voltage phase angle
-                  'R'               : 0.01                                                                                                               #? [Ohm]   - Grid resistance
+                  'R'               : 0                                                                                                               #? [Ohm]   - Grid resistance
                }
 AC_Filter      =  {                                                                                                                                   # Power/EMI FILTER, 1PH: CMC -> Cx, Cy1/Cy2 -> L1/L5 (Ll) -> DMC -> Cx1 // (Rd + Cd) -> PFC
                                                                                                                                                      # two-stage DM filter: stage 1 = CMC leakage + Cx (~23 kHz), stage 2 = DMC + Ll + Cx1 (~10 kHz),
@@ -145,7 +143,7 @@ AC_Filter      =  {                                                             
 #! PFC['SW'] takes a copy of the device selected by PFC_SWITCH.
 Switches       =  {
                   'C3M0021120K'    : {                                                                                                                # Wolfspeed C3M0021120K, 1200 V / 100 A / 21 mOhm SiC MOSFET (selected)
-                     'Config'         : 2,                                                                                                            #? [/]      - FET config: 1 Real SW, 2 Real SW + separate body diode, 3 Ideal, 4 Pass, 5 Short
+                     'Config'         : 1,                                                                                                            #? [/]      - FET config: 1 Real SW, 2 Real SW + separate body diode, 3 Ideal, 4 Pass, 5 Short
                      'therm_mosfet'   : 'file:C3M0021120K',                                                                                           #? [/]      - Thermal description of the switch (Thermal Lib)
                      'Rgon'           : 2.5,                                                                                                          #? [Ohm]    - External turn-on gate resistance
                      'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
@@ -178,44 +176,10 @@ Switches       =  {
                      't_init'         : 25,                                                                                                           #? [°C]     - Initial temperature of the thermal chain
                      'rth_sw'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance junction -> case
                      'rth_ch'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance case -> heatsink (TIM)
-                     'Rth'            : 0.2                                                                                                           #? [K/W]    - Total thermal resistance junction -> heatsink
-                  },
-           
-                  'C3M0015065K'    : {                                                                                                                # Wolfspeed C3M0015065K, 650 V / 120 A / 15 mOhm SiC MOSFET (650 V option)
-                     'Config'         : 2,                                                                                                            #? [/]      - FET config: 1 Real SW, 2 Real SW + separate body diode, 3 Ideal, 4 Pass, 5 Short
-                     'therm_mosfet'   : 'file:C3M0015065K',                                                                                           #? [/]      - Thermal description of the switch (Thermal Lib)
-                     'Rgon'           : 2.5,                                                                                                          #? [Ohm]    - External turn-on gate resistance
-                     'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
-                     'ron_mosfet'     : 15e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0015065K: 15 mOhm typ, 650 V / 120 A)
-                     'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
-                     'Coss'           : {                                                                                                             # output capacitance (Passives/C)
-                        'Config'  : 1,                                                                                                                #? [/]      - 1 ESR+ESL, 2 Ideal, 3 Pass (Passives/C)
-                        'Cap_s'   : 289e-12,                                                                                                          #? [F]      - Coss at 400 V (C3M0015065K: 289 pF)
-                        'Resr_s'  : 0.5,                                                                                                              #? [Ohm]    - Equivalent series resistance (damps the Coss loop)
-                        'Lesl_s'  : 2e-9,                                                                                                             #? [H]      - Equivalent series inductance (package / power loop)
-                        'Npara'   : 1,                                                                                                                #? [/]      - Number of parallel capacitors
-                        'Nseri'   : 1,                                                                                                                #? [/]      - Number of series capacitors
-                        'Vinit'   : 0,                                                                                                                #? [V]      - Initial voltage
-                        'Iinit'   : 0                                                                                                                 #? [A]      - Initial current
-                     },
-                     'therm_body_diode': {                                                                                                            # body diode (Switches/D)
-                        'Config'        : 1,                                                                                                          #? [/]      - Diode config: 1 Diode Thermal, 2 Diode Simple, 3 Pass, 4 Short
-                        'therm_diode'   : 'file:C3M0015065K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib)
-                        'vf_diode'      : 4.5,                                                                                                        #? [V]      - Body diode forward voltage
-                        'ron_diode'     : 5e-3,                                                                                                       #? [Ohm]    - Body diode on-state resistance
-                        't_init'        : 25,                                                                                                         #? [°C]     - Initial junction temperature of the body diode
-                        'num_par_diode' : 1,                                                                                                          #? [/]      - Number of parallel diodes
-                        'Case_Cth'      : 0,                                                                                                          #? [J/K]    - Thermal capacitance of the diode case node (0: no extra thermal state, ~4x faster)
-                        'Case_Tinit'    : 25,                                                                                                         #? [°C]     - Initial temperature of the diode case node
-                        'Case_Amb_rth'  : 0.1                                                                                                         #? [K/W]    - Thermal resistance diode case -> switch thermal port
-                     },
-                     'nPara'          : 1,                                                                                                            #? [/]      - Number of parallel switches
-                     'T_init'         : 25,                                                                                                           #? [°C]     - Initial junction temperature
-                     'Tamb'           : 25,                                                                                                           #? [°C]     - Ambient temperature
-                     't_init'         : 25,                                                                                                           #? [°C]     - Initial temperature of the thermal chain
-                     'rth_sw'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance junction -> case
-                     'rth_ch'         : 0.1,                                                                                                          #? [K/W]    - Thermal resistance case -> heatsink (TIM)
-                     'Rth'            : 0.2                                                                                                           #? [K/W]    - Total thermal resistance junction -> heatsink
+                     'Rth'            : 0.2,                                                                                                          #? [K/W]    - Total thermal resistance junction -> heatsink
+                     'foster_rth'     : [0.0472 ,0.0688],                                                                                             #? [/]      - Foster representation of the thermal resistance
+                     'foster_cth'     : [0.95 , 2.4]                                                                                                  #? [/]      - Foster representation of the thermal capacitance
+                  
                   }
                }
 PFC_SWITCH     = 'C3M0021120K'                                                                                                                           # device of Switches used by the PFC stage
@@ -303,10 +267,7 @@ Load           =  {
                      'Vinit'                 : 0,                                                                                                        #? [V]      - Initial voltage across the load
                      'Iinit'                 : 0,                                                                                                        #? [A]      - Initial current through the load
                      't_switch'              : Sim_param['tSim'] - Sim_param['load_tflip'],                                                              #? [s]      - Time when the load switching occurs
-                     't_dead'                : (Sim_param['tSim'] - Sim_param['load_tflip']) / 2 ,                                                       #? [s]      - Dead time for load switching
-                     'Loadgen'               : {
-                                                'Config' : Configs['Loadgen'],                                                                                                  #? [/]      - Load generator configuration
-                                                }
+                     't_dead'                : (Sim_param['tSim'] - Sim_param['load_tflip']) / 2                                                        #? [s]      - Dead time for load switching
                         
                }
 Thermals       =  {
