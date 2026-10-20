@@ -139,6 +139,41 @@ The controller uses average current mode control in the `PFC CTRL` → `TPB PFC`
 
 The gains are recomputed by `Derived.update()` in `derived.py` whenever a sweep changes L, C, fsw or Vref.
 
+## Measurement chain and MCU
+
+The controller never sees ideal signals. It runs inside an `MCU` subsystem and receives the outputs of real sensors through an ADC, like the firmware on the board.
+
+```
+power stage ──► Iin sense / Vac sense / Vdc sense ──► (Goto Iin_sns, Vac_sns, Vdc_sns)
+                                                            │
+MCU:  sensor voltage ──► ADC (12 bit, 3.3 V, sampled at fsw) ──► firmware scaling ──► PFC CTRL ──► g_PFC
+```
+
+| Sensor (library `Sensors`) | Placement | Model | Default |
+|---|---|---|---|
+| `Iin sense` (`A_sense`) | in series between the EMI filter and the PFC (line) | shunt + isolated amplifier: gain, gain/offset error, first-order bandwidth, mid-rail offset, clamp to the ADC rail | 5 mΩ + AMC1301: 50 mV/A, 1.65 V offset, 200 kHz, ±25 A → 0.4…2.9 V |
+| `Vac sense` (`V_sense`) | across the PFC AC terminals | divider + RC anti-alias + isolated amplifier: two poles | 3.75 mV/V around 1.65 V, 10 kHz RC, 275 kHz amplifier |
+| `Vdc sense` (`V_sense`) | across the PFC DC terminals | same as Vac | 6 mV/V (0…500 V → 0…3 V), 5 kHz RC |
+
+`HA_sense` (Hall-effect current sensor) has the same model as `A_sense`, for Hall-type defaults.
+
+The `ADC` block (library `Sensors`) models:
+- gain and offset error;
+- the input range 0…Vref;
+- sample & hold every `Ts`, at offset `Toffs`;
+- N-bit quantization (floor), output in counts 0…2ᴺ−1.
+
+The MCU samples once per PWM period at the carrier valley (`Toffs = 0`), which gives the average inductor current.
+
+The firmware scaling converts counts back to physical units with the **nominal** sensor gain and offset (`MCU.Cal`). Errors you set in `Sensors` (`err_g`, `err_ofs`) therefore reach the controller as real measurement errors.
+
+All of this is set in `parameters.py`:
+- `Sensors`: the hardware on the board, including its errors;
+- `MCU.ADC`: resolution, reference, sampling;
+- `MCU.Cal`: what the firmware assumes.
+
+`derived.py` keeps `MCU.ADC.Ts = 1/fsw` when fsw is swept.
+
 ## Simulation
 
 | Setting | Value |
@@ -224,3 +259,5 @@ Only `parameters.py`, `derived.py` and `sweep.py` are specific to this converter
 | `CTRL` | Control loops, gains, limits, zero-crossing and soft-start settings |
 | `Load` | Load power, R/L, load step |
 | `Thermals` | Ambient temperature, heatsink-to-ambient thermal resistance |
+| `Sensors` | Current and voltage sensors on the board: gain, offset, bandwidth, errors, output range |
+| `MCU` | ADC (bits, Vref, sampling period / instant, errors) and the firmware calibration of the sensors |

@@ -38,5 +38,7 @@ class Derived:
         Ctrl['Kp_v']               = 2 * np.pi * Ctrl['fc_v'] * Ctrl['C_out'] * Ctrl['Vref']
         Ctrl['Ki_v']               = (2 * np.pi * Ctrl['fc_v'])**2 / 2 * Ctrl['C_out'] * Ctrl['Vref']
         Ld['R']                    = Ctrl['Vref']**2 / Ld['Pout']
+        if 'MCU' in mdlvar:
+            mdlvar['MCU']['ADC']['Ts']  = 1 / Ctrl['fsw']                                     # ADC samples once per PWM period
         return mdlvar
 #?----------------------------------------------------------------------------------------------------------------------------------------

@@ -296,6 +296,61 @@ Thermals       =  {
                      'T_amb'                 : 25.0,                                                                                                     #? [°C]     - Ambient temperature
                      'rth_Amb'               : 0.09                                                                                                      #? [K/W]    - Thermal resistance from junction to ambient
                   }
+Sensors        =  {                                                                                                                                   # measurement chain on the board (Sensors library): v_out = clamp(Vofs + err_ofs + G*(1+err_g)*x, Vmin, Vmax)
+                  'Iin'           : {                                                                                                                 # input (inductor) current: 5 mOhm shunt + AMC1301 (x8.2) + level shift, +-25 A -> 1.65 +- 1.25 V
+                     'G'       : 0.05,                                                                                                                #? [V/A]    - Sensitivity
+                     'Vofs'    : 1.65,                                                                                                                #? [V]      - Output at 0 A (mid-rail)
+                     'BW'      : 200e3,                                                                                                               #? [Hz]     - Bandwidth (isolated amplifier)
+                     'err_g'   : 0,                                                                                                                   #? [/]      - Gain error (e.g. 0.005 = +0.5 %)
+                     'err_ofs' : 0,                                                                                                                   #? [V]      - Offset error
+                     'Vmin'    : 0,                                                                                                                   #? [V]      - Output clamp low (ADC rail)
+                     'Vmax'    : 3.3,                                                                                                                 #? [V]      - Output clamp high (ADC rail)
+                  },
+                  'Vac'           : {                                                                                                                 # AC input voltage: resistive divider + RC + AMC1311, +-400 V -> 1.65 +- 1.5 V
+                     'G'       : 1.5/400,                                                                                                             #? [V/V]    - Divider + amplifier gain
+                     'Vofs'    : 1.65,                                                                                                                #? [V]      - Output at 0 V (mid-rail)
+                     'BW'      : 10e3,                                                                                                                #? [Hz]     - RC anti-alias filter corner
+                     'BW2'     : 275e3,                                                                                                               #? [Hz]     - Isolated amplifier bandwidth
+                     'err_g'   : 0,                                                                                                                   #? [/]      - Gain error
+                     'err_ofs' : 0,                                                                                                                   #? [V]      - Offset error
+                     'Vmin'    : 0,                                                                                                                   #? [V]      - Output clamp low
+                     'Vmax'    : 3.3,                                                                                                                 #? [V]      - Output clamp high
+                  },
+                  'Vdc'           : {                                                                                                                 # DC-link voltage: resistive divider + RC + AMC1311, 0..500 V -> 0..3 V
+                     'G'       : 3/500,                                                                                                               #? [V/V]    - Divider + amplifier gain
+                     'Vofs'    : 0,                                                                                                                   #? [V]      - Output at 0 V
+                     'BW'      : 5e3,                                                                                                                 #? [Hz]     - RC anti-alias filter corner
+                     'BW2'     : 275e3,                                                                                                               #? [Hz]     - Isolated amplifier bandwidth
+                     'err_g'   : 0,                                                                                                                   #? [/]      - Gain error
+                     'err_ofs' : 0,                                                                                                                   #? [V]      - Offset error
+                     'Vmin'    : 0,                                                                                                                   #? [V]      - Output clamp low
+                     'Vmax'    : 3.3,                                                                                                                 #? [V]      - Output clamp high
+                  }
+               }
+MCU            =  {                                                                                                                                   # microcontroller: ADC + firmware calibration (nominal sensor gain / offset, without the errors)
+                  'ADC'           : {                                                                                                                 # ADC used for all three channels (Sensors/ADC)
+                     'N'       : 12,                                                                                                                  #? [bit]    - Resolution
+                     'Vref'    : 3.3,                                                                                                                 #? [V]      - Full scale
+                     'Ts'      : 1/CTRL['fsw'],                                                                                                       #? [s]      - Sampling period (once per PWM period)
+                     'Toffs'   : 0,                                                                                                                   #? [s]      - Sampling instant in the period (0 = carrier valley -> average inductor current)
+                     'err_g'   : 0,                                                                                                                   #? [/]      - ADC gain error
+                     'err_ofs' : 0,                                                                                                                   #? [V]      - ADC offset error
+                  },
+                  'Cal'           : {                                                                                                                 # calibration the firmware uses to convert counts back to V / A
+                     'Iin'     : {                                                                                                                    # Iin channel
+                        'G'    : Sensors['Iin']['G'],                                                                                                 #? [V/unit] - Nominal sensor gain
+                        'ofs'  : Sensors['Iin']['Vofs']                                                                                               #? [V]      - Nominal sensor offset
+                     },
+                     'Vac'     : {                                                                                                                    # Vac channel
+                        'G'    : Sensors['Vac']['G'],                                                                                                 #? [V/unit] - Nominal sensor gain
+                        'ofs'  : Sensors['Vac']['Vofs']                                                                                               #? [V]      - Nominal sensor offset
+                     },
+                     'Vdc'     : {                                                                                                                    # Vdc channel
+                        'G'    : Sensors['Vdc']['G'],                                                                                                 #? [V/unit] - Nominal sensor gain
+                        'ofs'  : Sensors['Vdc']['Vofs']                                                                                               #? [V]      - Nominal sensor offset
+                     }
+                  }
+               }
 #!----------------------------------------------------------------------------------------------------------------------------------------
 ModelVars      =  {                                                                                             
                   'Sim_param'             :  Sim_param               ,      
@@ -306,7 +361,9 @@ ModelVars      =  {
                   'DCLink'                :  DCLink                  ,                                                              
                   'CTRL'                  :  CTRL                    ,                                                            
                   'Load'                  :  Load                    ,                                                                
-                  'Thermals'              :  Thermals    
+                  'Thermals'              :  Thermals                ,
+                  'Sensors'               :  Sensors                 ,
+                  'MCU'                   :  MCU
                }	
 SolverOpts     =  {
                   'Sim_param'             :  ModelVars['Sim_param'] 
