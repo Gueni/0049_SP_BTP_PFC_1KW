@@ -151,4 +151,4 @@ Rules of thumb:
 | `P0` | 0 W | initial voltage-integrator state |
 | `t_car` | 11.7 µs | carrier delay |
 
-The older entries at the top of `CTRL` (`Vmax`, `Imax`, `Rmax`, `f_Vloop`, `BW_Vloop`, `IBW_Vloop`, `f_Iloop`, `BW_Iloop`, `IBW_Iloop`, `Ra`, `Rsa`, `Ga`, `Gsa`, `fs`, `Ri_*`, `Rv_*`, `Pout`) are not referenced by the model.
+`CTRL.Pout` (rated power) follows `Load.Pout` through `Derived.update()`.

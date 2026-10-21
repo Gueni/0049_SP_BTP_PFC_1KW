@@ -47,7 +47,7 @@ CODEGEN                                = False                                  
 RTBOX                                  = False                                                 # upload + run the generated code on the RT Box
 SCOPES                                 = None                                                  # scope names to clear/hold/save: None = all scopes in the model, [] = none
 HOLD_TRACES                            = True                                                  # hold traces after each simulation point, to save them all at the end
-SAVE_TRACES                            = False                                                 # save all traces at the end of the sweep        
+SAVE_TRACES                            = False                                                 # save all traces at the end of the sweep
 PARASIM                                = False                                                 # run several sweep points in parallel
 PARANUM                                = None                                                  # max sweep points per parallel batch (None = auto from the CPU threads)
 ANALYSIS_NAME                          = ''                                                    # PLECS analysis name, for plcsim.launch_analysis
@@ -91,12 +91,9 @@ if SWEEP_EN:
         points                         = plc.Sweep.build_points(prm.ModelVars, SWEEP, run_id, paths, update_derived=Derived.update)
         batch_size                     = plc.Sweep.auto_batch_size(len(points), PARANUM) if PARASIM else 1
         plcsim.paranum                 = batch_size
-        mode                           = f"parallel x{batch_size}" if PARASIM else "sequential"
-
         for start in range(0, len(points), batch_size):
                 batch                  = points[start:start + batch_size]
                 plcsim.Set_sim_param([mv for _, mv in batch] if PARASIM else batch[0][1])
-                t0                     = time.time()
                 plcsim.launch_sim(modelname=modelname)
                 if HOLD_TRACES: plcsim.HoldAllTraces(scopes)
 

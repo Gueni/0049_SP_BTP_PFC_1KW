@@ -25,27 +25,27 @@ from     pathlib     import   Path
 import   numpy       as       np
 #!----------------------------------------------------------------------------------------------------------------------------------------
 #! All paths are resolved from this file's location, so the scripts work from any working directory.
-LIB_DIR        =  Path(__file__).resolve().parent                    # <repo>/Lib
+LIB_DIR        =  Path(__file__).resolve().parent                    # <repo>/lib
 ROOT_DIR       =  LIB_DIR.parent                                     # <repo>
-MODEL_NAME     =  "PFC"                                              # pfc model name (without .plecs extension) 
-MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"         
+MODEL_NAME     =  "PFC"                                              # model name (without .plecs extension)
+MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
 MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"
 DATA_DIR       =  ROOT_DIR / "data"                                  # results: data/timeseries, data/mat, data/html, data/log, data/traces
-PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"            # PLECS libraries (Power, Switches ...): names of the probe signals
+PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"      # PLECS libraries (Power, Switches ...): names of the probe signals
 F0_PATH        =  ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
 F0_OVERRIDES   =  {                                                  # waveform name keyword -> its own fundamental (first match wins)
-                              'HS1'   : ('CTRL', 'fsw'),                        # fast leg switches at fsw
-                              'LS1'   : ('CTRL', 'fsw'),
-                             }
-TSIM           = 0.4e-4                                                # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
-TSAVE          = TSIM - 0.05e-4                                               # time point at which the data is saved [s]
+                  'HS1'             : ('CTRL', 'fsw'),                # fast leg switches at fsw
+                  'LS1'             : ('CTRL', 'fsw'),
+               }
+TSIM           =  0.4                                              # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
+TSAVE          =  TSIM - 0.05                                      # time point at which the data is saved [s]
 #!----------------------------------------------------------------------------------------------------------------------------------------
-Sim_param 	   =  {                                                                                            
-                  'tSim'	    	   : TSIM,                                                                                                               #? [s]     - Total simulation time
-                  'load_tflip'	   : TSIM/2,                                                                                                             #? [s]     - Time at which the load changes state 
-                  'maxStep'		   : 1e-3,                                                                                                              #? [s]     - Maximum simulation time step
-                  'ZeroCross'       : 1000,                                                                                                              #? [/]     - Zero-crossing detection limit
-                  'rel_tol'		   : 1e-3                                                                                                               #? [/]     - Relative tolerance for the numerical solver (PLECS default; 1e-7 was ~4x slower for < 0.02 % difference)
+Sim_param      =  {
+                  'tSim'            : TSIM,                                                                                                             #? [s]     - Total simulation time
+                  'load_tflip'      : TSIM/2,                                                                                                           #? [s]     - Time at which the load changes state
+                  'maxStep'         : 1e-3,                                                                                                             #? [s]     - Maximum simulation time step
+                  'ZeroCross'       : 1000,                                                                                                             #? [/]     - Zero-crossing detection limit
+                  'rel_tol'         : 1e-3                                                                                                              #? [/]     - Relative tolerance for the numerical solver (PLECS default; 1e-7 was ~4x slower for < 0.02 % difference)
                }
 Configs        =  {
                   'Grid'            : 1,                                                                                                                #? [/]     - EVSE/GRID: 1 1 PH, 2 1 PH Simple (AC source), 3 3 PH, 4 3 PH Simple
@@ -86,9 +86,9 @@ MODES          =  {
                   'real'            : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 1},              #? [/]     - ESR+ESL capacitors, thermal switches with Coss and thermal body diode
                   'physical'        : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 3, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 2}               #? [/]     - ESR+ESL capacitors, physical switches with physical body diode (switching studies, slow)
                }
-ToFile         =  {                     
-                  'Ts'              : 0,                                                                                                                 #? [s]     - Sampling time for saving data
-                  'tsave' 	    	   : TSAVE,                                                                                                              #? [s]     - Time point at which the data is saved
+ToFile         =  {
+                  'Ts'              : 0,                                                                                                                #? [s]     - Sampling time for saving data
+                  'tsave'           : TSAVE,                                                                                                            #? [s]     - Time point at which the data is saved
                }
 Grid           =  {                                                                                                                                          # EVSE / grid source
                   'Config'          : Configs['Grid'],                                                                                                   #? [/]     - Configuration setting for the grid
@@ -306,41 +306,20 @@ PFC            =  {
                   'Cout'            : 10e-6,                                                                                                             #? [F]      - PFC output (HF decoupling) capacitance
                   'SW'              : copy.deepcopy(Switches[PFC_SWITCH])                                                                             # selected switch (see Switches / PFC_SWITCH)
                }
-DCLink         =  {                                                                                             
-                      'Config'		   : Configs['DCLink'],                                                                                              #? [/]      - Capacitance configuration
-                      'Cap_s'    		: 47e-6,                                                                                                         #? [F]      - Capacitance value 
-                      'Resr_s'		   : 50e-3,                                                                                                          #? [Ohm]    - Equivalent series resistance of the capacitance
-                      'Lesl_s'		   : 20e-9,                                                                                                        #? [H]      - Equivalent series inductance of the capacitance
-                      'Npara'		      : 10,                                                                                                              #? [/]      - Number of parallel capacitors
-                      'Nseri'		      : 1,                                                                                                              #? [/]      - Number of series capacitors
-                      'Vinit'		      : -2**0.5 * Grid['Vin'],                                                                                          #? [V]      - Initial voltage: line peak, inrush bypass assumed (negative: CDC is placed flipped)
-                      'Iinit'		      : 0                                                                                                               #? [A]      - Initial current through the capacitance   
-                     }
-CTRL           =  {
-                     'Vmax'                  : 440.0,                                                                                                    #? [V]     - Maximum voltage
-                     'Imax'                  : 12.54,                                                                                                    #? [A]     - Maximum current
-                     'Rmax'                  : 440.0 / 12.54,                                                                                            #? [Ohm]   - Maximum load impedance (Rmax = Vmax / Imax)
-                     'f_Vloop'               : 2e3,                                                                                                      #? [Hz]    - Voltage control loop frequency
-                     'BW_Vloop'              : 20,                                                                                                       #? [Hz]    - Voltage loop bandwidth
-                     'IBW_Vloop'             : 12.5,                                                                                                     #? [Hz]    - Integral bandwidth for voltage loop
-                     'f_Iloop'               : 50e3,                                                                                                     #? [Hz]    - Current control loop frequency
-                     'BW_Iloop'              : 4e3,                                                                                                      #? [Hz]    - Current loop bandwidth
-                     'IBW_Iloop'             : 1e3,                                                                                                      #? [Hz]    - Integral bandwidth for current loop
-                     'Ra'                    : 2 * np.pi * 700e-6 * 4e3,                                                                                 #? [Ohm]   - Current compensator resistance (Ra = 2*pi*L*BW_Iloop)
-                     'Rsa'                   : 2 * np.pi * (2 * np.pi * 700e-6 * 4e3) * 1e3,                                                             #? [Ohm]   - Current compensator series resistance (Rsa = 2*pi*Ra*IBW_Iloop)
-                     'Ga'                    : 2 * np.pi * 360e-6 * 20,                                                                                  #? [S]     - Voltage compensator gain (Ga = 2*pi*C*BW_Vloop)
-                     'Gsa'                   : 2 * np.pi * (2 * np.pi * 360e-6 * 20) * 12.5,                                                             #? [S]     - Voltage compensator series gain (Gsa = 2*pi*Ga*IBW_Vloop)
-                     
+DCLink         =  {
+                  'Config'          : Configs['DCLink'],                                                                                                #? [/]      - Capacitance configuration
+                  'Cap_s'           : 47e-6,                                                                                                            #? [F]      - Capacitance value
+                  'Resr_s'          : 50e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance of the capacitance
+                  'Lesl_s'          : 20e-9,                                                                                                            #? [H]      - Equivalent series inductance of the capacitance
+                  'Npara'           : 10,                                                                                                               #? [/]      - Number of parallel capacitors
+                  'Nseri'           : 1,                                                                                                                #? [/]      - Number of series capacitors
+                  'Vinit'           : -2**0.5 * Grid['Vin'],                                                                                            #? [V]      - Initial voltage: line peak, inrush bypass assumed (negative: CDC is placed flipped)
+                  'Iinit'           : 0                                                                                                                 #? [A]      - Initial current through the capacitance
+               }
+CTRL           =  {                                                                                                                                       # TPB PFC controller (PFC CTRL configuration 'TPB PFC')
                      'Vref'                  : 400,                                                                                                      #? [V]      - Reference voltage
                      'Pout'                  : 1e3,                                                                                                      #? [W]      - Rated output power
                      'T_dt'                  : 300e-9,                                                                                                   #? [s]      - Dead time
-                     'fs'                    : 100e-3,                                                                                                   #? [Hz]     - Switching frequency
-                     'Ri_Kp'                 : 0.1,                                                                                                      #? [/]      - Proportional gain for current control
-                     'Ri_Ki'                 : 600,                                                                                                      #? [/]      - Integral gain for current control
-                     'Rv_Kp'                 : 5,                                                                                                        #? [/]      - Proportional gain for voltage control
-                     'Rv_Ki'                 : 800,                                                                                                      #? [/]      - Integral gain for voltage control
-                   
-                     #! TPB PFC controller (PFC CTRL configuration 'TPB PFC')
                      'fsw'                   : 80e3,                                                                                                     #? [Hz]    - Fast-leg PWM (carrier) frequency
                      'L_boost'               : PFC['Choke']['L1'] + PFC['Choke']['L2'] - 2 * PFC['Choke']['Lm'],                                         #? [H]     - Effective boost inductance seen by the current loop
                      'C_out'                 : PFC['Cout'] + DCLink['Cap_s'] * DCLink['Npara'] / DCLink['Nseri'],                                        #? [F]     - Total DC-link capacitance seen by the voltage loop
@@ -370,12 +349,12 @@ Load           =  {
                      'Vout2'                 : 400,                                                                                                      #? [V]      - Load voltage (second step)
                      'CL'                    : 0,                                                                                                        #? [F]      - Load capacitance value
                      'R'                     : 400**2 / 1e3,                                                                                             #? [Ohm]    - Load resistance value
-                     'L'                     : 10e-6,                                                                                                    #? [H]      - Load inductance value (> 0: the RL loads, Config 3/4, are singular with L = 0)
+                     'L'                     : 10e-6,                                                                                                    #? [H]      - Load inductance value (> 0: the RL loads are singular with L = 0)
                      'Vinit'                 : 0,                                                                                                        #? [V]      - Initial voltage across the load
                      'Iinit'                 : 0,                                                                                                        #? [A]      - Initial current through the load
                      't_switch'              : Sim_param['tSim'] - Sim_param['load_tflip'],                                                              #? [s]      - Time when the load switching occurs
                      't_dead'                : (Sim_param['tSim'] - Sim_param['load_tflip']) / 2                                                        #? [s]      - Dead time for load switching
-                        
+
                }
 Thermals       =  {
                      'T_amb'                 : 25.0,                                                                                                     #? [°C]     - Ambient temperature
@@ -438,34 +417,31 @@ MCU            =  {                                                             
                }
 #!----------------------------------------------------------------------------------------------------------------------------------------
 ModelVars      =  {
-                  'Sim_param'             :  Sim_param               ,      
+                  'Sim_param'             :  Sim_param               ,
                   'ToFile'                :  ToFile                  ,
-                  'Grid'                  :  Grid                    ,                                                                   
-                  'AC_Filter'             :  AC_Filter               ,                                                           
-                  'PFC'                   :  PFC                     ,                                                                 
-                  'DCLink'                :  DCLink                  ,                                                              
-                  'CTRL'                  :  CTRL                    ,                                                            
-                  'Load'                  :  Load                    ,                                                                
+                  'Grid'                  :  Grid                    ,
+                  'AC_Filter'             :  AC_Filter               ,
+                  'PFC'                   :  PFC                     ,
+                  'DCLink'                :  DCLink                  ,
+                  'CTRL'                  :  CTRL                    ,
+                  'Load'                  :  Load                    ,
                   'Thermals'              :  Thermals                ,
                   'Sensors'               :  Sensors                 ,
                   'MCU'                   :  MCU
-               }	
-SolverOpts     =  {
-                  'Sim_param'             :  ModelVars['Sim_param'] 
                }
 AnalysisOpts   =  {
-                  'system_period'         :  1/Grid['f']             ,      
+                  'system_period'         :  1/Grid['f']             ,
                   'freq_range_min'        :  1                       ,
                   'freq_range_max'        :  1e7                     ,
-                  'amplitude'             :  1e-1                    ,                                                                   
-                  'sim_Tstart'            :  0                       ,                                                           
-                  'NB_pts'                :  10000                   ,                                                                 
-                  'additional_freq'       :  []                      ,                                                              
-                  'NB_init_cycles'        :  0                       ,                                                                 
-                  'Termination_tol'       :  1e-3                    ,                                                            
-                  'max_iter_NB'           :  50                      ,   
-                  'Jacobian_rel_tol'      :  1e-6        
-                                                                           
+                  'amplitude'             :  1e-1                    ,
+                  'sim_Tstart'            :  0                       ,
+                  'NB_pts'                :  10000                   ,
+                  'additional_freq'       :  []                      ,
+                  'NB_init_cycles'        :  0                       ,
+                  'Termination_tol'       :  1e-3                    ,
+                  'max_iter_NB'           :  50                      ,
+                  'Jacobian_rel_tol'      :  1e-6
+
               }
 #! Result CSV columns: names and units are read from the To File header (signal names on) by plecs.ProbeNames; the
 #! elements of vector probes are named after the library mask probes. Labels only for vectors no library block names:
