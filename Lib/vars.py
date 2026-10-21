@@ -1,24 +1,18 @@
 #!/usr/bin/env python
 # coding=utf-8
 #? -------------------------------------------------------------------------------
-#?              __  ___          __     __   ____
-#?             /  |/  /___  ____/ /__  / /  / __ \____ __________ _____ ___  _____
-#?            / /|_/ / __ \/ __  / _ \/ /  / /_/ / __ `/ ___/ __ `/ __ `__ \/ ___/
-#?           / /  / / /_/ / /_/ /  __/ /  / ____/ /_/ / /  / /_/ / / / / / (__  )
-#?          /_/  /_/\____/\__,_/\___/_/  /_/    \__,_/_/   \__,_/_/ /_/ /_/____/
+#?
+#?           _   ______ ___________
+#?          | | / / __ `/ ___/ ___/
+#?          | |/ / /_/ / /  (__  )
+#?          |___/\__,_/_/  /____/
 #?
 #?
-#? Name:        parameters.py
-#? Purpose:     Everything specific to the simulated system (here the 1 kW TPB PFC): model paths, parameters,
-#?              derived parameters, result waveforms. For another system (LLC, OBC, DC-DC ...) copy this file and
-#?              edit it; the library files (pplecs, pplots, plog, pmath, rtbox) do not change.
-#?
-#?              Required : MODEL_NAME, MODEL_PATH, DATA_DIR, ModelVars (with a 'ToFile' struct read by the model's
-#?                         To File block), Waveforms ({name: unit} of the result CSV columns after time, in order).
-#?              Optional : MODEL_IMG_PATH (image on top of the HTML report), F0_PATH (key path of the fundamental
-#?                         frequency in ModelVars, None = no harmonic plots), F0_OVERRIDES (waveform name keyword ->
-#?                         key path of that waveform's own fundamental, e.g. the switching frequency),
-#?                         parameters after the sweep changed base values), SolverOpts, AnalysisOpts.
+#? Name:        vars.py
+#? Purpose:     System parameters (1 kW TPB PFC): paths, configurations, modes, ModelVars structs.
+#?              Every value carries '#? [unit] - comment' (shown in the HTML report).
+#?              Required: MODEL_NAME, MODEL_PATH, DATA_DIR, PLECS_LIB_DIR, ModelVars (with ToFile).
+#?              Optional: SIGNAL_LABELS, MODEL_IMG_PATH, F0_PATH, F0_OVERRIDES.
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -37,13 +31,14 @@ MODEL_NAME     =  "PFC"                                              # pfc model
 MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"         
 MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"
 DATA_DIR       =  ROOT_DIR / "data"                                  # results: data/timeseries, data/mat, data/html, data/log, data/traces
+PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"            # PLECS libraries (Power, Switches ...): names of the probe signals
 F0_PATH        =  ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
 F0_OVERRIDES   =  {                                                  # waveform name keyword -> its own fundamental (first match wins)
                               'HS1'   : ('CTRL', 'fsw'),                        # fast leg switches at fsw
                               'LS1'   : ('CTRL', 'fsw'),
                              }
-TSIM           = 0.4                                                # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
-TSAVE          = TSIM - 0.05                                               # time point at which the data is saved [s]
+TSIM           = 0.4e-4                                                # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
+TSAVE          = TSIM - 0.05e-4                                               # time point at which the data is saved [s]
 #!----------------------------------------------------------------------------------------------------------------------------------------
 Sim_param 	   =  {                                                                                            
                   'tSim'	    	   : TSIM,                                                                                                               #? [s]     - Total simulation time
@@ -83,7 +78,7 @@ CONFIG_PATHS   =  {
                   'DCLink'          : [('DCLink', 'Config')],
                   'Load'            : [('Load', 'Config')]
                }
-#! Modes: configuration presets selected in sweep.py with MODE (None = Configs as above).
+#! Modes: configuration presets selected in main.py with MODE (None = Configs as above).
 #! The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation
 #! at the line zero crossing then forces a jump of its current (PLECS: 'State discontinuity after switching').
 MODES          =  {
@@ -472,72 +467,9 @@ AnalysisOpts   =  {
                   'Jacobian_rel_tol'      :  1e-6        
                                                                            
               }
-Waveforms      =  {                                                                                            # result CSV columns after time, in order: name -> unit
-                  'Grid Voltage'                          : '[ V ]',
-                  'Grid Current'                          : '[ A ]',
-                  #!-------------------------
-                  'EMI Filter Current'                    : '[ A ]',
-                  'EMI Filter Voltage'                    : '[ V ]',
-                  #!-------------------------
-                  'PFC Input Voltage'                     : '[ V ]',
-                  'PFC Input Current'                     : '[ A ]',
-                  'PFC output voltage'                    : '[ V ]',
-                  'PFC output Current'                    : '[ A ]',
-                  #!-------------------------
-                  'PFC gates signal HS1'                  : '[ / ]',
-                  'PFC gates signal LS1'                  : '[ / ]',
-                  'PFC gates signal HS2'                  : '[ / ]',
-                  'PFC gates signal LS2'                  : '[ / ]',
-                  'PFC gates signal HS3'                  : '[ / ]',
-                  'PFC gates signal LS3'                  : '[ / ]',
-                  #!-------------------------
-                  'PFC Input choke Winding 1 Current'     : '[ A ]',
-                  'PFC Input choke Winding 1 Voltage'     : '[ V ]',
-                  'PFC Input choke Winding 3 Current'     : '[ A ]',
-                  'PFC Input choke Winding 2 Voltage'     : '[ V ]',
-                  #!-------------------------
-                  'PFC HS1 voltage'                       : '[ V ]',
-                  'PFC LS1 voltage'                       : '[ V ]',
-                  'PFC HS2 voltage'                       : '[ V ]',
-                  'PFC LS2 voltage'                       : '[ V ]',
-                  'PFC HS3 voltage'                       : '[ V ]',
-                  'PFC LS3 voltage'                       : '[ V ]',
-                  #!-------------------------
-                  'PFC HS1 Current'                       : '[ A ]',
-                  'PFC LS1 Current'                       : '[ A ]',
-                  'PFC HS2 Current'                       : '[ A ]',
-                  'PFC LS2 Current'                       : '[ A ]',
-                  'PFC HS3 Current'                       : '[ A ]',
-                  'PFC LS3 Current'                       : '[ A ]',
-                  #!-------------------------
-                  'PFC HS1 junction Temperature'          : '[ °C ]',
-                  'PFC LS1 junction Temperature'          : '[ °C ]',
-                  'PFC HS2 junction Temperature'          : '[ °C ]',
-                  'PFC LS2 junction Temperature'          : '[ °C ]',
-                  'PFC HS3 junction Temperature'          : '[ °C ]',
-                  'PFC LS3 junction Temperature'          : '[ °C ]',
-                  #!-------------------------
-                  'PFC HS1 switching losses'              : '[ W ]',
-                  'PFC LS1 switching losses'              : '[ W ]',
-                  'PFC HS2 switching losses'              : '[ W ]',
-                  'PFC LS2 switching losses'              : '[ W ]',
-                  'PFC HS3 switching losses'              : '[ W ]',
-                  'PFC LS3 switching losses'              : '[ W ]',
-                  #!-------------------------
-                  'PFC HS1 conduction losses'             : '[ W ]',
-                  'PFC LS1 conduction losses'             : '[ W ]',
-                  'PFC HS2 conduction losses'             : '[ W ]',
-                  'PFC LS2 conduction losses'             : '[ W ]',
-                  'PFC HS3 conduction losses'             : '[ W ]',
-                  'PFC LS3 conduction losses'             : '[ W ]',
-                  #!-------------------------
-                  'PFC output capacitor voltage'          : '[ V ]',
-                  'PFC output capacitor current'          : '[ A ]',
-                  #!-------------------------
-                  'DCLink capacitor voltage'              : '[ V ]',
-                  'DCLink capacitor current'              : '[ A ]',
-                  #!-------------------------
-                  'Load voltage'                          : '[ V ]',
-                  'Load current'                          : '[ A ]'
+#! Result CSV columns: names and units are read from the To File header (signal names on) by plecs.ProbeNames; the
+#! elements of vector probes are named after the library mask probes. Labels only for vectors no library block names:
+SIGNAL_LABELS  =  {                                                                                            # 'component:probe signal' -> element names
+                  'PFC:Gate Signals'                      : ['HS1', 'LS1', 'HS2', 'LS2', 'HS3', 'LS3'],                # g_PFC order of the PFC CTRL
                }
 #!----------------------------------------------------------------------------------------------------------------------------------------

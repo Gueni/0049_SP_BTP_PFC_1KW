@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # coding=utf-8
 #? -------------------------------------------------------------------------------
-#?                                     __  __
-#?              ____  ____ ___  ____ _/ /_/ /_
-#?             / __ \/ __ `__ \/ __ `/ __/ __ \
-#?            / /_/ / / / / / / /_/ / /_/ / / /
-#?           / .___/_/ /_/ /_/\__,_/\__/_/ /_/
-#?          /_/
+#?
+#?                        __
+#?            _________ _/ /____
+#?           / ___/ __ `/ / ___/
+#?          / /__/ /_/ / / /__
+#?          \___/\__,_/_/\___/
 #?
 #?
-#? Name:        pmath.py
-#? Purpose:     Signal math: rms, average, FFT, harmonics, min/max envelope. System independent.
+#? Name:        calc.py
+#? Purpose:     signal math (RMS, average, FFT, harmonics, envelopes).
+#?              Derived: parameters computed from others, recomputed per sweep point.
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -20,26 +21,14 @@
 #? -------------------------------------------------------------------------------
 import  numpy                       as      np
 
-from    scipy.fft                   import  rfft, rfftfreq
+from    scipy.fft                   import  rfft
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class PMath:
     """Signal math on simulation results."""
 
     #?------------------------------------------------------------------------------------------------------------------------------------
-    #? Signal math
+    #? Harmonics of one signal
     #?------------------------------------------------------------------------------------------------------------------------------------
-    @staticmethod
-    def compute_fft(signal, fs):
-        """Single-sided FFT of a signal sampled at fs. Returns (amplitude, phase [deg], frequency [Hz])."""
-        signal              = np.asarray(signal, dtype=float)
-        N                   = signal.size
-        spectrum            = rfft(signal)[:N // 2]
-        f                   = rfftfreq(N, 1 / fs)[:N // 2]
-        amplitude           = np.abs(spectrum) * (2.0 / N)
-        amplitude[0]       /= 2                                                        # DC is not doubled
-        phase               = np.angle(spectrum, deg=True)
-        return amplitude, phase, f
-
     @staticmethod
     def compute_harmonics(t, y, f0, n_harmonics, window):
         """Amplitudes of harmonic orders 1..n_harmonics of f0 in the signal y(t), over its last `window` seconds
@@ -50,25 +39,6 @@ class PMath:
         spectrum            = np.abs(rfft(np.interp(t_u, t, y))) * (2.0 / N)
         orders              = np.arange(1, n_harmonics + 1)
         return orders, spectrum[np.rint(orders * f0 * window).astype(int)]
-
-    @staticmethod
-    def _time_mean(values, time_values):
-        """Time-weighted mean of values over time_values (trapezoidal integration)."""
-        time_values         = np.asarray(time_values, dtype=float)
-        delta_T             = time_values[-1] - time_values[0]
-        if delta_T == 0:
-            raise ValueError("Time interval cannot be zero.")
-        return np.trapezoid(values, x=time_values) / delta_T
-
-    @staticmethod
-    def compute_average(signal, time_values):
-        """Average value of a signal over time_values."""
-        return PMath._time_mean(np.asarray(signal, dtype=float), time_values)
-
-    @staticmethod
-    def compute_rms(signal, time_values):
-        """RMS value of a signal over time_values."""
-        return np.sqrt(PMath._time_mean(np.square(signal, dtype=float), time_values))
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? Batch metrics: every column of Y (one column per waveform) over the last `window` seconds of t (None = all of t)
@@ -165,4 +135,27 @@ PMath.METRICS               = {
                                 'Peak'       : PMath.peak,
                               }
 PMath.RESULT_TYPES          = list(PMath.METRICS) + ['FFT']
+#?----------------------------------------------------------------------------------------------------------------------------------------
+class Derived:
+    """Parameters computed from other ones; update() is called on every sweep point after the swept values are set."""
+
+    @staticmethod
+    def update(mdlvar):
+        """Recompute the parameters derived from other ones (same formulas as in vars.py), after a sweep changed the base values."""
+        PFC, DC, Ctrl, Ld          = mdlvar['PFC'], mdlvar['DCLink'], mdlvar['CTRL'], mdlvar['Load']
+        Choke, Sw                  = PFC['Choke'], PFC['SW']
+        DC['Vinit']                = -2**0.5 * mdlvar['Grid']['Vin']                         # pre-charged to the line peak (CDC placed flipped)
+        Ctrl['L_boost']            = Choke['L1'] + Choke['L2'] - 2 * Choke['Lm']
+        Ctrl['C_out']              = PFC['Cout'] + DC['Cap_s'] * DC['Npara'] / DC['Nseri']
+        Ctrl['fc_i']               = Ctrl['fsw'] / 10
+        Ctrl['Kp_i']               = 2 * np.pi * Ctrl['fc_i'] * Ctrl['L_boost']
+        Ctrl['Ki_i']               = (2 * np.pi * Ctrl['fc_i'])**2 / 10 * Ctrl['L_boost']
+        Ctrl['Kp_v']               = 2 * np.pi * Ctrl['fc_v'] * Ctrl['C_out'] * Ctrl['Vref']
+        Ctrl['Ki_v']               = (2 * np.pi * Ctrl['fc_v'])**2 / 2 * Ctrl['C_out'] * Ctrl['Vref']
+        Ctrl['t_car']              = 15 / 16 / Ctrl['fsw']                                   # carrier delay: ADC samples Ts/16 after the valley
+        Ctrl['Pout']               = Ld['Pout']                                              # rated power of the controller = load power
+        Ld['R']                    = Ctrl['Vref']**2 / Ld['Pout']
+        Sw['Tamb']                 = Sw['T_init'] = mdlvar['Thermals']['T_amb']              # switch ambient / initial junction temperature
+        mdlvar['MCU']['ADC']['Ts'] = 1 / Ctrl['fsw']                                         # ADC samples once per PWM period
+        return mdlvar
 #?----------------------------------------------------------------------------------------------------------------------------------------

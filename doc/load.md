@@ -19,7 +19,7 @@ Block `Load` (library `Passives/Load`), struct `Load`. The resistance is driven 
 |---|---|---|
 | `Pout` | 1 kW | load power (swept as `Pout`) |
 | `Vout1` / `Vout2` | 400 V | load voltage before / after the step |
-| `R` | Vref² / Pout = 160 Ω | load resistance (recomputed by `derived.py`) |
+| `R` | Vref² / Pout = 160 Ω | load resistance (recomputed by `Derived.update()` in `calc.py`) |
 | `L` | 10 µH | load inductance |
 | `CL` | 0 | load capacitance |
 | `t_switch` | tSim − load_tflip | load step time (0.2 s with TSIM = 0.4 s) |

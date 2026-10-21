@@ -113,7 +113,7 @@ The feed-forward term `1 − |vac|/Vdc` already provides nearly the whole duty. 
 
 ## Tuning
 
-The gains are computed in [parameters.py](../lib/parameters.py) and recomputed by `Derived.update()` in [derived.py](../lib/derived.py) on every sweep point, so they follow swept values of L, C, fsw and Vref.
+The gains are computed in [vars.py](../lib/vars.py) and recomputed by `Derived.update()` in [calc.py](../lib/calc.py) on every sweep point, so they follow swept values of L, C, fsw and Vref.
 
 | Loop | Plant | Crossover | Kp | Ki (PI zero) |
 |---|---|---|---|---|
@@ -127,7 +127,7 @@ with:
 Rules of thumb:
 - **Current loop:** keep `fc_i` ≤ fsw/10. The ADC samples once per period, and the sampling and PWM delay eat phase margin quickly above that.
 - **Voltage loop:** keep `fc_v` well below 2·f_line (100 Hz), or the 100 Hz ripple enters the current reference as third-harmonic distortion. The 20 Hz LPF adds phase lag: if you raise `fc_v`, raise `f_lpf_v` with it.
-- **Derived values:** `derived.py` also sets `t_car = 15/16/fsw` and `MCU.ADC.Ts = 1/fsw` when fsw changes.
+- **Derived values:** `Derived.update()` also sets `t_car = 15/16/fsw` and `MCU.ADC.Ts = 1/fsw` when fsw changes.
 
 ## Parameters (`CTRL`)
 

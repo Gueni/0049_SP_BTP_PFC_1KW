@@ -5602,7 +5602,7 @@ Plecs {
               }
               Parameter {
                 Variable      "WriteSignalNames"
-                Value         "1"
+                Value         "2"
                 Show          off
               }
               Parameter {
@@ -14364,4 +14364,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "EWDdlnVTd3fWhTrpsBKlQPk+zuVWlx3/Pl5IjAAk8G0="
+DemoSignature "gBLK1U8j3q9DvSK/j0ddjxfsmDK8FUdhzn9y1d0plEM="

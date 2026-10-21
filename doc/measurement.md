@@ -57,7 +57,7 @@ One ADC block per channel, all with `ADC = MCU.ADC`:
 |---|---|---|
 | `N` | 12 bit | resolution |
 | `Vref` | 3.3 V | full scale |
-| `Ts` | 1/fsw | once per PWM period (set by `derived.py` when fsw is swept) |
+| `Ts` | 1/fsw | once per PWM period (set by `Derived.update()` in `calc.py` when fsw is swept) |
 | `Toffs` | 0 | sampling instant; with the carrier delay `CTRL.t_car` this is Ts/16 after the valley, i.e. the average inductor current |
 
 ## Firmware scaling (struct `MCU.Cal`)

@@ -13,7 +13,7 @@ L2/L3 are only used by the three-phase configuration.
 | Key | Value | Meaning |
 |---|---|---|
 | `Config` | 1 | single phase |
-| `Vin` | 230 Vrms | line voltage (swept as `Vin` in `sweep.py`; 85…265 Vrms is the design range) |
+| `Vin` | 230 Vrms | line voltage (swept as `Vin` in `main.py`; 85…265 Vrms is the design range) |
 | `f` | 50 Hz | line frequency; also the fundamental of the harmonic analysis (`F0_PATH`) |
 | `phase` | 0 rad | phase angle |
 | `R` | 0 Ω | series resistance per conductor (set > 0 to model a weak grid) |

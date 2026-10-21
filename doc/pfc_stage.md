@@ -29,7 +29,7 @@ The dead time (300 ns, `CTRL.T_dt`) is applied by the controller.
 
 The current loop sees `L_boost = L1 + L2 − 2·Lm` = **248 µH**. That gives a 5.0 A p-p ripple at 85 Vrms and 80 kHz: 30 % of the 16.6 A line peak.
 
-`L_boost` is recomputed by `derived.py`, so sweeping `L1` retunes the current loop ([control.md](control.md#tuning)).
+`L_boost` is recomputed by `Derived.update()` in `calc.py`, so sweeping `L1` retunes the current loop ([control.md](control.md#tuning)).
 
 ## Coupled inductors
 

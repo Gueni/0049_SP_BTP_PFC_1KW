@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # coding=utf-8
 #? -------------------------------------------------------------------------------
-#?                          __      __
-#?            ____  ____  / /___  / /______
-#?           / __ \/ __ \/ / __ \/ __/ ___/
-#?          / /_/ / /_/ / / /_/ / /_(__  )
-#?         / .___/ .___/_/\____/\__/____/
-#?        /_/   /_/
+#?
+#?              ____  _________  ________  __________
+#?             / __ \/ ___/ __ \/ ___/ _ \/ ___/ ___/
+#?            / /_/ / /  / /_/ / /__/  __(__  |__  )
+#?           / .___/_/   \____/\___/\___/____/____/
+#?          /_/
 #?
 #?
-#? Name:        pplots.py
-#? Purpose:     Plot simulation results to HTML reports (time-domain waveforms, harmonic spectra, parameter tables).
-#?              System independent: waveform names, fundamental, model name/image are passed in by the caller.
+#? Name:        process.py
+#? Purpose:     Results: HTML report and result matrices (PPlots), sweep log (PLog).
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -20,6 +19,7 @@
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
 import  os
+import  math
 import  re
 import  webbrowser
 import  io
@@ -34,8 +34,8 @@ import  plotly.colors               as      pc
 from    pathlib                     import  Path
 from    plotly.subplots             import  make_subplots
 from    PIL                         import  Image
-from    pmath                       import  PMath
-from    pplecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, Sweep
+from    .calc                       import  PMath
+from    .plecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, Sweep, ProbeNames
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class PPlots:
     """HTML reports of simulation results."""
@@ -43,22 +43,14 @@ class PPlots:
     PLOT_BUCKETS        = 2500                                                         # time-domain min/max bins per trace
     N_HARMONICS         = 50                                                           # harmonic orders shown in the harmonic bar plots
     ANALYSIS_CYCLES     = 5                                                            # last whole fundamental cycles used for the metrics and harmonics (None = all)
-    UNIT_KEYWORDS       = {                                                            # waveform name keyword -> unit (first match wins)
-                            'voltage'       : '[ V ]',
-                            'current'       : '[ A ]',
-                            'temperature'   : '[ C ]',
-                            'losses'        : '[ W ]',
-                            'power'         : '[ W ]',
-                            'signal'        : '[ V ]',
-                          }
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? Helpers
     #?------------------------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def units_from_names(waveforms):
-        """Unit of each waveform guessed from a keyword of its name ('[ Unknown ]' if none matches)."""
-        return [next((u for kw, u in PPlots.UNIT_KEYWORDS.items() if kw in w.lower()), '[ Unknown ]') for w in waveforms]
+        """Unit of each waveform guessed from a keyword of its name (ProbeNames.UNIT_KEYWORDS, '[ / ]' if none matches)."""
+        return [next((u for kw, u in ProbeNames.UNIT_KEYWORDS.items() if kw in w.lower()), '[ / ]') for w in waveforms]
 
     @staticmethod
     def png_to_hex_base64(img_path):
@@ -78,16 +70,9 @@ class PPlots:
         return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     @staticmethod
-    def flatten_dict(d, parent_key='', sep='.'):
+    def flatten_dict(d):
         """Flatten a nested dict into {'a.b.c': value}."""
-        items               = {}
-        for k, v in d.items():
-            new_key         = f"{parent_key}{sep}{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.update(PPlots.flatten_dict(v, new_key, sep))
-            else:
-                items[new_key] = v
-        return items
+        return {'.'.join(map(str, p)): Sweep.get_nested(d, p) for p in Sweep.leaf_paths(d)}
 
     @staticmethod
     def extract_comments(filename):
@@ -189,7 +174,9 @@ class PPlots:
                   f"The model has no 'To File' block writing to {OUTPUT_KEY}.ToFile_path.")
             return None
         try:
-            data            = pd.read_csv(resFile, header=None, usecols=range(n + 1), dtype=float).to_numpy()
+            with open(resFile, encoding='utf-8', errors='ignore') as f:
+                named       = f.readline().lstrip()[:1] == '"'                      # To File header with the signal names
+            data            = pd.read_csv(resFile, header=None, skiprows=1 if named else 0, usecols=range(n + 1), dtype=float).to_numpy()
         except (pd.errors.EmptyDataError, ValueError) as err:
             print(f"WARNING: result CSV empty or unreadable, skipped in the reports: {resFile} ({err})")
             return None
@@ -287,7 +274,7 @@ class PPlots:
         Metrics and harmonics use the last ANALYSIS_CYCLES whole cycles of the lowest fundamental of the run.
 
         *Args:
-            points      : list of (label, ModelVars) as built by pplecs.Sweep.build_points.
+            points      : list of (label, ModelVars) as built by plecs.Sweep.build_points.
             waveforms   : the result CSV columns after time, in order: {name: unit}, or a list of names.
             units       : unit of each waveform; None = the units of the waveforms dict, or guessed from the names (units_from_names).
             f0_path     : key path of the fundamental frequency in ModelVars, e.g. ('Grid', 'f'); None = no harmonics,
@@ -384,4 +371,53 @@ class PPlots:
         params              = PPlots.flatten_dict(analysis_opts)
         table_fig           = PPlots._params_table({"PARAMETERS": list(params.keys()), "VALUES": list(params.values())})
         PPlots.write_html(html_file, f"{title}_MOHAMED_GUENI", [fig, table_fig], OPEN=OPEN)
+#?----------------------------------------------------------------------------------------------------------------------------------------
+class PLog:
+    """Parameter logs. ModelVars are nested dicts; a parameter is written as [key][subkey]... = value."""
+
+    WIDTH               = 99                                                           # length of the section separators
+
+    @staticmethod
+    def flat(d):
+        """Yield (key path tuple, value) for every leaf of a nested dict."""
+        return ((p, Sweep.get_nested(d, p)) for p in Sweep.leaf_paths(d))
+
+    @staticmethod
+    def _differs(a, b):
+        """a != b, with a relative tolerance on numbers so rounding noise of derived parameters is not a change."""
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return not math.isclose(a, b, rel_tol=1e-9)
+        return a != b
+
+    @staticmethod
+    def _key(keys):
+        return "[" + "][".join(str(k) for k in keys) + "]"
+
+    @staticmethod
+    def _fmt(value):
+        return f"{value:g}" if isinstance(value, (int, float)) and not isinstance(value, bool) else str(value)
+
+    @staticmethod
+    def params_lines(params):
+        """All parameters of a nested dict (output files excluded), one '[a][b] = value' line each."""
+        return ["{:<40}= {}".format(PLog._key(k), v) for k, v in PLog.flat(params) if k[0] != OUTPUT_KEY]
+
+    @staticmethod
+    def write_sweep_log(points, base, run_id):
+        """One log file per sweep: the base parameters once, then one section per iteration with only the parameters
+        that differ from the base (swept values and the derived parameters they change).
+        points: list of (label, ModelVars) as built by plecs.Sweep.build_points; the file is ModelVars[OUTPUT_KEY]['logfile']."""
+        log_file            = points[0][1][OUTPUT_KEY]['logfile']
+        base_flat           = dict(PLog.flat(base))
+        lines               = [f"Sweep {run_id}: {len(points)} iterations", "=" * PLog.WIDTH, "BASE PARAMETERS", "-" * PLog.WIDTH]
+        lines              += PLog.params_lines(base)
+        for label, mv in points:
+            swept           = ", ".join(f"{k}={PLog._fmt(v)}" for k, v in label.items())
+            lines          += ["=" * PLog.WIDTH, f"ITERATION {mv[OUTPUT_KEY]['sim_idx']}/{len(points)} : {swept}",
+                               f"results : {mv[OUTPUT_KEY]['ToFile_path']}", "-" * PLog.WIDTH]
+            lines          += ["{:<40}= {:<24} (base: {})".format(PLog._key(k), str(v), base_flat.get(k))
+                               for k, v in PLog.flat(mv) if k[0] != OUTPUT_KEY and PLog._differs(v, base_flat.get(k))]
+        with open(log_file, 'w') as f:
+            f.write("\n".join(lines) + "\n")
+        return log_file
 #?----------------------------------------------------------------------------------------------------------------------------------------

@@ -37,11 +37,11 @@ The signal path is **grid → EMI filter → PFC stage → DC link → load**. S
 ## Quick start
 
 1. Start PLECS with the XML-RPC server on port 1080.
-2. Set the parameters in [lib/parameters.py](lib/parameters.py). In [lib/sweep.py](lib/sweep.py), set the sweep and the model depth with `MODE = 'ideal' | 'real' | 'physical'`.
+2. Set the parameters in [lib/vars.py](lib/vars.py). In [main.py](main.py), set the sweep and the model depth with `MODE = 'ideal' | 'real' | 'physical'`.
 3. Run:
 
    ```bash
-   python lib/sweep.py
+   python main.py
    ```
 
 4. Open the report in `data/html/`.
@@ -51,20 +51,17 @@ To test the switch models alone (double pulse, every mode), use the component te
 ## Repository layout
 
 ```
+main.py           entry point: sweep definition, model mode and run flags   [system specific]
 asset/            schematics used in the docs and the HTML report
 doc/              documentation, datasheets and reference papers
 model/
   PFC.plecs       PLECS model (power stage + control)
   tpbpfc_init.m   stand-alone MATLAB/Octave first-cut design script
 lib/
-  sweep.py        sweep definition and run flags                  [system specific]
-  parameters.py   model paths, parameters, waveforms              [system specific]
-  derived.py      derived parameters, recomputed per sweep point  [system specific]
-  pplecs.py       PLECS XML-RPC interface, scopes, result folders, sweep points
-  pplots.py       HTML report
-  plog.py         sweep log
-  pmath.py        signal math (RMS, average, peaks, harmonics)
-  rtbox.py        PLECS Coder code generation and RT Box run
+  vars.py         model paths, parameters, configurations, modes   [system specific]
+  calc.py         signal math (PMath) + derived parameters recomputed per sweep point (Derived, [system specific])
+  plecs.py        PLECS XML-RPC interface, scopes, result folders, sweep points, signal names, code generation + RT Box
+  process.py      HTML report and result matrices (PPlots), sweep log (PLog)
 data/             sweep outputs (git-ignored)
 ```
 

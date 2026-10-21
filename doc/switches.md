@@ -4,7 +4,7 @@
 
 Each of the six PFC switches is a `Switches/FET` block. The switch thermal ports go to ambient through `Rth H-A` (`Thermals.rth_Amb`, `Thermals.T_amb`).
 
-`Switches` in [parameters.py](../lib/parameters.py) is a small device library. `PFC_SWITCH` picks the device, and `PFC['SW']` is a copy of it. The FET configuration is set by `Configs['PFC_SW']`.
+`Switches` in [vars.py](../lib/vars.py) is a small device library. `PFC_SWITCH` picks the device, and `PFC['SW']` is a copy of it. The FET configuration is set by `Configs['PFC_SW']`.
 
 ## FET configurations (`Config`)
 

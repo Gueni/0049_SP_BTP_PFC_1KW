@@ -1,6 +1,6 @@
 # Simulation, sweep and results
 
-## Settings (`parameters.py`)
+## Settings (`vars.py`)
 
 | Setting | Value |
 |---|---|
@@ -16,16 +16,16 @@ The run time depends mostly on the switch model ([switches.md](switches.md#simul
 PLECS must be running with its XML-RPC server enabled on port 1080. Restart PLECS after editing a library, because it caches libraries.
 
 ```bash
-python lib/sweep.py
+python main.py
 ```
 
-`sweep.py` simulates every combination of the values in `SWEEP`. Values in `SWEEP` override the defaults in `parameters.py`, so check them before a run.
+`main.py` simulates every combination of the values in `SWEEP`. Values in `SWEEP` override the defaults in `vars.py`, so check them before a run.
 
-`SWEEP_PATHS` sets where each swept value is written in `ModelVars`. One swept value can drive several parameters. After the values are written, `Derived.update()` recomputes the dependent parameters (loop gains, load R, ADC rate…).
+Each `SWEEP` key is the name of a parameter in `vars.py` (`'Vin'`), or the end of its path when the name is used several times (`'Choke.L1'`, `'DCLink.Cap_s'`). The sweep finds the parameter in `ModelVars` by itself and prints where each key goes. A key that matches no parameter, or several, stops the run with the possible names. Parameters that follow another one are set in `Derived.update()` (in `calc.py`): `CTRL.Pout` follows `Load.Pout`, and the switch `Tamb` / `T_init` follow `Thermals.T_amb`. After the swept values are written, `Derived.update()` also recomputes the dependent parameters (loop gains, load R, ADC rate…).
 
 ### Model mode
 
-All block configurations are in `Configs` in [parameters.py](../lib/parameters.py), and `CONFIG_PATHS` says where each one is written in `ModelVars`. `MODE` at the top of `sweep.py` switches the model depth in one variable:
+All block configurations are in `Configs` in [vars.py](../lib/vars.py), and `CONFIG_PATHS` says where each one is written in `ModelVars`. `MODE` at the top of `main.py` switches the model depth in one variable:
 
 | `MODE` | Capacitors (EMI filter, DC link, Coss) | Switches | Body diode |
 |---|---|---|---|
@@ -34,7 +34,7 @@ All block configurations are in `Configs` in [parameters.py](../lib/parameters.p
 | `'physical'` | ESR + ESL (Y capacitors ideal) | physical equivalent circuit | physical |
 | `None` | as in `Configs` | as in `Configs` | as in `Configs` |
 
-The presets are the `MODES` dict in `parameters.py`; edit it to change what a mode means. The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation at the line zero crossing then makes PLECS stop with "State discontinuity after switching". Grid, EMI filter topology, PFC topology and load keep their `Configs` value in every mode.
+The presets are the `MODES` dict in `vars.py`; edit it to change what a mode means. The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation at the line zero crossing then makes PLECS stop with "State discontinuity after switching". Grid, EMI filter topology, PFC topology and load keep their `Configs` value in every mode.
 
 ### Flags
 
@@ -51,7 +51,7 @@ The presets are the `MODES` dict in `parameters.py`; edit it to change what a mo
 
 ```
 data/
-  timeseries/   Results_<run>_<n>.csv   waveforms of each point (time + the Waveforms of parameters.py)
+  timeseries/   Results_<run>_<n>.csv   waveforms of each point (time + the probe signals, named in the header)
   mat/          RMS / Average / PeakToPeak / Max / Min / Peak _<run>.csv   one row per point, one column per waveform
                 FFT_<run>.csv                                             f0_Hz, H1 … H50 per point and waveform
   html/         Html_<run>.html         single report: waveform + harmonic plot of every point, results table, parameter table
@@ -59,7 +59,18 @@ data/
   traces/                               saved scope traces
 ```
 
-How the results are computed (`pmath.py`, `pplots.py`):
+### Signal names
+
+The result columns are not listed by hand. The `To File` block in `Data Export` writes the signal names in the CSV header, as `component:probe signal`, and `:k` for each element of a vector probe. `plecs.ProbeNames` turns them into report names and units:
+
+- **Vector elements:** named after the mask probe of the referenced library block (in `PLECS_LIB_DIR`) for its active configuration, e.g. `PFC:SW Voltages:1` becomes `PFC SW Voltages HS1`.
+- **Placeholder constants:** they count with their width, e.g. `SW PH 1`, `SW PH 2` for the switches the 2-leg configuration does not have.
+- **Units:** taken from the probe and signal names (voltage → V, current → A, temperature → °C, loss → W, gate → /).
+- **Vectors no library block names:** e.g. the gate vector entering the PFC block. Their element names come from `SIGNAL_LABELS` in `vars.py`.
+
+Adding or removing a probe in `Data Export` needs no change in Python.
+
+How the results are computed (`calc.py`, `process.py`):
 
 | Item | Detail |
 |---|---|
@@ -87,4 +98,4 @@ The switch models (`Switches/D`, `Switches/FET`) are tested on their own in the 
 | `Thermals` | ambient temperature, heatsink-to-ambient Rth | [switches.md](switches.md) |
 | `Sensors`, `MCU` | measurement chain, ADC, firmware calibration | [measurement.md](measurement.md) |
 
-Every parameter in `parameters.py` carries a `#? [unit] - comment`, which the HTML report shows.
+Every parameter in `vars.py` carries a `#? [unit] - comment`, which the HTML report shows.
