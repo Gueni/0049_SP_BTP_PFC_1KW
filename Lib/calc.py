@@ -144,7 +144,7 @@ class Derived:
         """Recompute the parameters derived from other ones (same formulas as in vars.py), after a sweep changed the base values."""
         PFC, DC, Ctrl, Ld          = mdlvar['PFC'], mdlvar['DCLink'], mdlvar['CTRL'], mdlvar['Load']
         Choke, Sw                  = PFC['Choke'], PFC['SW']
-        DC['Vinit']                = -2**0.5 * mdlvar['Grid']['Vin']                         # pre-charged to the line peak (CDC placed flipped)
+        DC['Vinit']                = 0 if DC['Config'] == 1 else -2**0.5 * mdlvar['Grid']['Vin']   # line peak (CDC flipped); Ideal (1): 0, like Cout in parallel
         Ctrl['L_boost']            = Choke['L1'] + Choke['L2'] - 2 * Choke['Lm']
         Ctrl['C_out']              = PFC['Cout'] + DC['Cap_s'] * DC['Npara'] / DC['Nseri']
         Ctrl['fc_i']               = Ctrl['fsw'] / 10

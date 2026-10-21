@@ -37,7 +37,7 @@ The signal path is **grid → EMI filter → PFC stage → DC link → load**. S
 ## Quick start
 
 1. Start PLECS with the XML-RPC server on port 1080.
-2. Set the parameters in [lib/vars.py](lib/vars.py). In [main.py](main.py), set the sweep and the model depth with `MODE = 'ideal' | 'real' | 'physical'`.
+2. Set the parameters in [lib/vars.py](lib/vars.py). In [main.py](main.py), set the sweep and the model depth with `MODE = 'ideal' | 'real'`.
 3. Run:
 
    ```bash

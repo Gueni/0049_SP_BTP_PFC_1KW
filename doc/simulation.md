@@ -27,14 +27,13 @@ Each `SWEEP` key is the name of a parameter in `vars.py` (`'Vin'`), or the end o
 
 All block configurations are in `Configs` in [vars.py](../lib/vars.py), and `CONFIG_PATHS` says where each one is written in `ModelVars`. `MODE` at the top of `main.py` switches the model depth in one variable:
 
-| `MODE` | Capacitors (EMI filter, DC link, Coss) | Switches | Body diode |
-|---|---|---|---|
-| `'ideal'` | ideal | ideal | – |
-| `'real'` | ESR + ESL (Y capacitors ideal) | thermal model with Coss | thermal |
-| `'physical'` | ESR + ESL (Y capacitors ideal) | physical equivalent circuit | physical |
-| `None` | as in `Configs` | as in `Configs` | as in `Configs` |
+| `MODE` | EMI filter | Capacitors (Cx, Cx1, Cy, DC link) | Switches | Body diode |
+|---|---|---|---|---|
+| `'ideal'` | Pass | Ideal | Ideal | Ideal |
+| `'real'` | on (1PH) | Real | Real (physical equivalent circuit) | Real (charge-control recovery) |
+| `None` | as in `Configs` | as in `Configs` | as in `Configs` | as in `Configs` |
 
-The presets are the `MODES` dict in `vars.py`; edit it to change what a mode means. The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation at the line zero crossing then makes PLECS stop with "State discontinuity after switching". Grid, EMI filter topology, PFC topology and load keep their `Configs` value in every mode.
+The presets are the `MODES` dict in `vars.py`. Grid, PFC topology and load keep their `Configs` value in every mode. In ideal mode the DC link starts at 0 V: an ideal DC link is directly in parallel with `Cout`, which starts at 0 V. The EMI filter chokes (CMC, DMC) are fixed to Ideal inside `Power/EMI FILTER`.
 
 ### Flags
 
