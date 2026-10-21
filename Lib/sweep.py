@@ -30,6 +30,8 @@ from   pplots           import  PPlots
 from   plog             import  PLog
 from   rtbox            import  RTBox
 #?----------------------------------------------------------------------------------------------------------------------------------------
+#? Model depth: 'ideal', 'real' or 'physical' sets all block configurations at once (parameters.MODES); None = parameters.Configs.
+MODE                                   = 'real'
 #? Sweep definition: every combination of the values below is simulated (keep a single value to hold a parameter fixed).
 SWEEP                                  = {
                                           'Vin'   : [230],
@@ -84,6 +86,9 @@ plcsim                                 = plc.simpy(
                                                     parasim         =   PARASIM             ,
                                                     paranum         =   PARANUM or 1
                                                     )
+if MODE:
+        prm.Configs.update(prm.MODES[MODE])
+        plc.Sweep.apply_configs(prm.ModelVars, prm.MODES[MODE], prm.CONFIG_PATHS)
 plcsim.rpc_connect()
 plcsim.load_model()
 
@@ -96,7 +101,7 @@ if SWEEP_EN:
         batch_size                     = plc.Sweep.auto_batch_size(len(points), PARANUM) if PARASIM else 1
         plcsim.paranum                 = batch_size
         mode                           = f"parallel x{batch_size}" if PARASIM else "sequential"
-        print(f"Sweep {run_id}: {len(points)} points, {mode}. Log: {PLog.write_sweep_log(points, prm.ModelVars, run_id)}")
+        print(f"Sweep {run_id}: {len(points)} points, {mode}, model mode {MODE or 'Configs'}. Log: {PLog.write_sweep_log(points, prm.ModelVars, run_id)}")
 
         for start in range(0, len(points), batch_size):
                 batch                  = points[start:start + batch_size]

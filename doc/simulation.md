@@ -23,6 +23,21 @@ python lib/sweep.py
 
 `SWEEP_PATHS` sets where each swept value is written in `ModelVars`. One swept value can drive several parameters. After the values are written, `Derived.update()` recomputes the dependent parameters (loop gains, load R, ADC rate…).
 
+### Model mode
+
+All block configurations are in `Configs` in [parameters.py](../lib/parameters.py), and `CONFIG_PATHS` says where each one is written in `ModelVars`. `MODE` at the top of `sweep.py` switches the model depth in one variable:
+
+| `MODE` | Capacitors (EMI filter, DC link, Coss) | Switches | Body diode |
+|---|---|---|---|
+| `'ideal'` | ideal | ideal | – |
+| `'real'` | ESR + ESL (Y capacitors ideal) | thermal model with Coss | thermal |
+| `'physical'` | ESR + ESL (Y capacitors ideal) | physical equivalent circuit | physical |
+| `None` | as in `Configs` | as in `Configs` | as in `Configs` |
+
+The presets are the `MODES` dict in `parameters.py`; edit it to change what a mode means. The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation at the line zero crossing then makes PLECS stop with "State discontinuity after switching". Grid, EMI filter topology, PFC topology and load keep their `Configs` value in every mode.
+
+### Flags
+
 | Flag | Effect |
 |---|---|
 | `SWEEP_EN` | run the simulation sweep |
@@ -52,6 +67,10 @@ How the results are computed (`pmath.py`, `pplots.py`):
 | RMS and average | time-weighted, so they are correct on PLECS' variable-step samples |
 | Harmonics | x-axis is the harmonic order. The fundamental is `Grid.f` (50 Hz), or `CTRL.fsw` for the fast-leg signals (`F0_OVERRIDES`). |
 | Parameter table | units, comments and values; a swept value is shown as `a / b / c` |
+
+## Device tests
+
+The switch models (`Switches/D`, `Switches/FET`) are tested on their own in the standalone component test project `0000_libraries/Plecs/component_tests`: a double pulse in each mode (ideal, real, physical), run with `python lib/ctest.py` there. See its README.
 
 ## Parameter structs (`ModelVars`)
 

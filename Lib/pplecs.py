@@ -255,6 +255,14 @@ class Sweep:
         return d
 
     @staticmethod
+    def apply_configs(mdlvar, configs, config_paths):
+        """Write block configurations {name: value} (e.g. a mode preset) to every ModelVars path of config_paths[name]."""
+        for name, value in configs.items():
+            for path in config_paths[name]:
+                Sweep.set_nested(mdlvar, path, value)
+        return mdlvar
+
+    @staticmethod
     def auto_batch_size(n_points, max_parallel=None, reserve=1):
         """Sweep points per parallel batch, from the CPU threads available to this process (minus `reserve` left for the
         OS / PLECS GUI), capped by max_parallel, then balanced so the batches are as even as possible

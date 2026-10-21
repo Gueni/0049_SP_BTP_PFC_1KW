@@ -134,11 +134,11 @@ Plecs {
           Direction     up
           Flipped       off
           LabelPosition south
-          Location      [0, 24; 1536, 832]
-          State         "AAAA/wAAAAD9AAAAAgAAAAEAAAC0AAACdfwCAAAAA/sAAAAQAFoAb"
+          Location      [0, 24; 1536, 841]
+          State         "AAAA/wAAAAD9AAAAAgAAAAEAAAC0AAACfvwCAAAAA/sAAAAQAFoAb"
 "wBvAG0AQQByAGUAYQAAAAAA/////wAAAIEA////+wAAABQAUwBhAHYAZQBkAFYAaQBlAHcAcwAAAA"
-"AA/////wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMBAAAANAAAAnUAAABjAP///wAAAAMAAAYAAAA"
-"AjvwBAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABUYAAAJ1"
+"AA/////wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMBAAAANAAAAn4AAABjAP///wAAAAMAAAYAAAA"
+"AjvwBAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABUYAAAJ+"
 "AAAABAAAAAQAAAAIAAAACPwAAAABAAAAAgAAAAEAAAAOAFQAbwBvAGwAQgBhAHIBAAAAAP////8AA"
 "AAAAAAAAA=="
           SavedViews    "AAAAAgAAAAA="
@@ -5225,7 +5225,7 @@ Plecs {
       }
       Parameter {
         Variable      "Configuration"
-        Value         "1"
+        Value         "Grid.Config"
         Show          off
       }
       Terminal {
@@ -14364,4 +14364,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "8K5fin5++gO5LKSCQbpmMfrK6fDhQ5qQYTvLNyxIuT0="
+DemoSignature "EWDdlnVTd3fWhTrpsBKlQPk+zuVWlx3/Pl5IjAAk8G0="

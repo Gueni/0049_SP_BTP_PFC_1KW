@@ -32,12 +32,12 @@ The signal path is **grid → EMI filter → PFC stage → DC link → load**. S
 | Switches (MOSFET, Coss, body diode, thermal) | [doc/switches.md](doc/switches.md) |
 | DC link | [doc/dc_link.md](doc/dc_link.md) |
 | Load | [doc/load.md](doc/load.md) |
-| Simulation, sweep, results, parameter structs | [doc/simulation.md](doc/simulation.md) |
+| Simulation, model modes, sweep, results, parameter structs | [doc/simulation.md](doc/simulation.md) |
 
 ## Quick start
 
 1. Start PLECS with the XML-RPC server on port 1080.
-2. Set the parameters in [lib/parameters.py](lib/parameters.py) and the sweep in [lib/sweep.py](lib/sweep.py).
+2. Set the parameters in [lib/parameters.py](lib/parameters.py). In [lib/sweep.py](lib/sweep.py), set the sweep and the model depth with `MODE = 'ideal' | 'real' | 'physical'`.
 3. Run:
 
    ```bash
@@ -45,6 +45,8 @@ The signal path is **grid → EMI filter → PFC stage → DC link → load**. S
    ```
 
 4. Open the report in `data/html/`.
+
+To test the switch models alone (double pulse, every mode), use the component test project in `0000_libraries/Plecs/component_tests`.
 
 ## Repository layout
 
