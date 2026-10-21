@@ -28,7 +28,7 @@ from   lib.calc         import  Derived
 from   lib.process      import  PPlots
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal', 'real' or 'physical' sets all block configurations at once (vars.MODES); None = vars.Configs.
-MODE                                   = 'real'
+MODE                                   = 'physical'
 #? Sweep definition: every combination of the values below is simulated (keep a single value to hold a parameter fixed).
 #? Key = the parameter name in vars.py ('Vin'), or the end of its path when the name is used several times ('Choke.L1');
 #? an unknown or ambiguous key stops the run with the possible names. Parameters that follow another one (CTRL.Pout,

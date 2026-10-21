@@ -82,9 +82,9 @@ CONFIG_PATHS   =  {
 #! The Y capacitors stay ideal: their ESL closes a common-mode loop with no damping path, and the slow-leg commutation
 #! at the line zero crossing then forces a jump of its current (PLECS: 'State discontinuity after switching').
 MODES          =  {
-                  'ideal'           : {'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_Coss': 2, 'PFC_SW_BD': 1},              #? [/]     - Ideal capacitors and switches: fastest
-                  'real'            : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 1},              #? [/]     - ESR+ESL capacitors, thermal switches with Coss and thermal body diode
-                  'physical'        : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 3, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 2}               #? [/]     - ESR+ESL capacitors, physical switches with physical body diode (switching studies, slow)
+                  'ideal'           : {'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_Coss': 2, 'PFC_SW_BD': 1, 'AC_Filter': 1},              #? [/]     - Ideal capacitors and switches: fastest
+                  'real'            : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 1, 'AC_Filter': 1},              #? [/]     - ESR+ESL capacitors, thermal switches with Coss and thermal body diode
+                  'physical'        : {'Cx': 1, 'Cx1': 1, 'Cy1': 2, 'Cy2': 2, 'DCLink': 1, 'PFC_SW': 3, 'PFC_SW_Coss': 1, 'PFC_SW_BD': 2, 'AC_Filter': 3}               #? [/]     - ESR+ESL capacitors, physical switches with physical body diode (switching studies, slow)
                }
 ToFile         =  {
                   'Ts'              : 0,                                                                                                                #? [s]     - Sampling time for saving data
