@@ -29,6 +29,7 @@ from   lib.process      import  PPlots
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal', 'real' or 'physical' sets all block configurations at once (vars.MODES); None = vars.Configs.
 MODE                                   = 'physical'
+
 #? Sweep definition: every combination of the values below is simulated (keep a single value to hold a parameter fixed).
 #? Key = the parameter name in vars.py ('Vin'), or the end of its path when the name is used several times ('Choke.L1');
 #? an unknown or ambiguous key stops the run with the possible names. Parameters that follow another one (CTRL.Pout,
@@ -41,6 +42,7 @@ SWEEP                                  = {
                                           'DCLink.Cap_s'  : [47e-6],
                                           'T_amb'         : [25],
                                          }
+
 #? What to run (in this order): the sweep, then code generation, then the RT Box (RTBOX implies CODEGEN).
 SWEEP_EN                               = True                                                  # run the simulation sweep
 CODEGEN                                = False                                                 # generate code (PLECS Coder) with the base ModelVars
