@@ -81,11 +81,21 @@ Adding or removing a probe in `Data Export` needs no change in Python.
 
 ```python
 from signals import SignalNames
-names = SignalNames.read('result.csv', 'model.plecs')                       # list of column names (after time)
+names = SignalNames.from_model('model.plecs')                              # from the model file alone (no simulation needed)
+names = SignalNames.read('result.csv', 'model.plecs')                      # columns of a result CSV (after time)
 names, units = SignalNames.read('result.csv', 'model.plecs', lib_dir, ModelVars, units=True)
 ```
 
-`lib_dir` (folder of the referenced libraries, default: the model's folder) and `ModelVars` (to resolve configurations such as `PFC.Config`) are only needed for masked library blocks. From a terminal: `python signals.py result.csv model.plecs [lib_dir]`.
+It reads the model and the libraries it references: the folders in `lib_dir` (one or a list), the model's folder, and PLECS's own `components.plecs` (found in the PLECS installation). It follows the To File input through Mux, subsystem and library-block ports, configurable subsystems (active configuration from `ModelVars`; without it, every configuration is tried), Goto/From and single-input blocks such as RMS or gain (named after their input, e.g. `RMS Value R11 Resistor current`), back to the probes. The To File and the probes can sit at any depth, inside library blocks too.
+
+From a terminal:
+
+```
+python signals.py model.plecs [lib_dir ...] [--debug]
+python signals.py result.csv model.plecs [lib_dir ...] [--debug]
+```
+
+`--debug` lists the libraries found, the library blocks it could not find, every To File block with what feeds it, and the signals traced into it.
 
 How the results are computed (`calc.py`, `process.py`):
 
