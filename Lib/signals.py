@@ -23,6 +23,7 @@
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
 import ast
+import base64
 import glob
 import math
 import os
@@ -106,7 +107,9 @@ class SignalNames:
                                       }
     GENERIC                         = re.compile(r'^(<undefined>|ToFile[ _]?In[ _]?\d+|In[ _]?\d*|Signal[ _]?\d*|)$', re.I)   # names PLECS gives unnamed signals
     PASS_THROUGH                    = {'ZeroOrderHold', 'Memory', 'Delay', 'DataTypeConversion', 'SignalSwitch'}   # input 1 -> output, same names
-    PLECS_DIRS                      = ['~/Documents/Plexim/PLECS*', 'C:/Program Files/Plexim/PLECS*', '/Applications/PLECS*/Contents/Resources']
+    PLECS_DIRS                      = ['$PLECS_DIR', '~/Documents/Plexim/PLECS*', '~/AppData/Local/Plexim/PLECS*', '~/AppData/Roaming/Plexim/PLECS*',
+                                       'C:/Program Files/Plexim/PLECS*', 'C:/Program Files (x86)/Plexim/PLECS*', 'C:/ProgramData/Plexim/PLECS*',
+                                       'C:/Plexim/PLECS*', '/Applications/PLECS*', '~/Plexim/PLECS*', '/opt/plexim/plecs*']   # PLECS installations
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? One-line entry points
@@ -152,6 +155,7 @@ class SignalNames:
             for f in sorted(d.glob('*.plecs')) if d.is_dir() else []:
                 self.lib_files.setdefault(f.stem.lower(), f)
         self._trees, self._blocks   = {}, {}
+        self.steps                  = []                                        # trace log (report)
         top                         = next((c for c in self.root['children'] if c['tag'] == 'Plecs'), self.root)
         self.top                    = _Scope(next(iter(self.kids(top, 'Schematic')), top), env=_Env({}, None, self.modelvars), root=True)
 
@@ -160,25 +164,71 @@ class SignalNames:
     #?------------------------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def parse(path):
-        """{'tag', 'props' [(key, value) in order], 'children'} of a .plecs file."""
+        """{'tag', 'props' [(key, value) in order], 'children'} of a .plecs file (text format of PLECS 4.x and later).
+        Strings split over several lines are joined, the outer quotes removed (inner \\" kept as ")."""
+        data                        = Path(path).read_bytes()
+        head                        = data[:200].lstrip(b'\xef\xbb\xbf \t\r\n')
+        if head.startswith(b'PK') or b'\x00' in data[:4096]:
+            raise ValueError(f"{path}: binary or zipped file, not a PLECS text model (save it as a plain .plecs model)")
+        if head.startswith(b'<'):
+            raise ValueError(f"{path}: XML file, not a PLECS text model")
+        try:
+            text                    = data.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text                    = data.decode('latin-1')
+        if not re.match(r'\s*\w+\s*\{', text):
+            raise ValueError(f"{path}: does not start like a PLECS model ('Plecs {{'): {text[:60]!r}")
         root                        = {'tag': None, 'props': [], 'children': []}
-        stack                       = [root]
-        with open(path, encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                s                   = line.strip()
-                if s.endswith('{') and s[:-1].strip().isidentifier():
-                    node            = {'tag': s[:-1].strip(), 'props': [], 'children': []}
-                    stack[-1]['children'].append(node)
-                    stack.append(node)
-                elif s == '}' and len(stack) > 1:
+        stack, pending, raw         = [root], None, None                       # pending: 'Tag' line waiting for its '{'
+        def unquote(v):
+            m                       = re.match(r'^base64\s+"(.*)"$', v, re.S)   # non-ASCII text: base64 "Q3VzdG9t..."
+            if m:
+                try:
+                    return base64.b64decode(m.group(1)).decode('utf-8', errors='replace')
+                except (ValueError, TypeError):
+                    return v
+            return v[1:-1].replace('\\"', '"') if len(v) >= 2 and v[0] == '"' and v[-1] == '"' else v
+        def close_prop():
+            nonlocal raw
+            if raw:
+                node, key, value    = raw
+                node['props'].append((key, unquote(value)))
+            raw                     = None
+        def open_block(tag):
+            node                    = {'tag': tag, 'props': [], 'children': []}
+            stack[-1]['children'].append(node)
+            stack.append(node)
+        for line in text.splitlines():
+            s                       = line.strip()
+            if not s:
+                continue
+            if raw and s.startswith('"'):                                       # continuation of a string split over lines
+                node, key, value    = raw
+                raw                 = (node, key, value[:-1] + s[1:] if value.endswith('"') else value + s)
+                continue
+            close_prop()
+            if pending is not None:
+                if s == '{':
+                    open_block(pending); pending = None; continue
+                stack[-1]['props'].append((pending, '')); pending = None
+            m                       = re.match(r'^([A-Za-z_]\w*)\s*\{$', s)
+            if m:
+                open_block(m.group(1))
+            elif s.startswith('}'):
+                if len(stack) > 1:
                     stack.pop()
-                elif s.startswith('"') and stack[-1]['props']:                  # continuation of a string split over lines
-                    key, value      = stack[-1]['props'][-1]
-                    stack[-1]['props'][-1] = (key, value + (s[1:-1] if s.endswith('"') else s[1:]))
-                elif s:
-                    key, _, value   = s.partition(' ')
-                    stack[-1]['props'].append((key, value.strip().strip('"')))
+            elif re.match(r'^[A-Za-z_]\w*$', s):
+                pending             = s                                         # 'Tag' with its '{' on the next line, or a bare key
+            else:
+                key, _, value       = s.replace('\t', ' ').partition(' ')       # key, any spaces / tabs, value
+                raw                 = (stack[-1], key, value.strip())
+        close_prop()
         return root
+
+    @staticmethod
+    def _strings(value):
+        """Strings of a list value: '{"VL1", "IL1"}' -> ['VL1', 'IL1']."""
+        return [x.replace('\\"', '"') for x in re.findall(r'"((?:[^"\\]|\\.)*)"', value or '')]
 
     @staticmethod
     def prop(node, key):
@@ -213,9 +263,13 @@ class SignalNames:
     #?------------------------------------------------------------------------------------------------------------------------------------
     def _library_file(self, name):
         f                           = self.lib_files.get(name.lower())
-        if f is None and name == 'Components':                                  # PLECS built-in library
-            hits                    = [h for d in self.PLECS_DIRS for h in glob.glob(os.path.join(os.path.expanduser(d), 'components.plecs'))]
-            f                       = self.lib_files['components'] = Path(sorted(hits)[-1]) if hits else None
+        if f is None and name == 'Components' and 'components' not in self.lib_files:   # PLECS built-in library, newest installation
+            hits                    = []
+            for d in self.PLECS_DIRS:
+                d                   = os.path.expandvars(os.path.expanduser(d))
+                for depth in ('', '*', '*/*', '*/*/*'):                         # components.plecs may sit in a subfolder
+                    hits           += glob.glob(os.path.join(d, depth, 'components.plecs'))
+            f                       = self.lib_files['components'] = Path(max(hits, key=os.path.getmtime)) if hits else None
         return f
 
     def _ref_block(self, comp):
@@ -343,7 +397,7 @@ class SignalNames:
             if active is not None and self.prop(p, 'Path') not in (None, '', active):
                 continue
             entry                   = self.prop(p, 'Component')
-            signals                 = re.findall(r'"([^"]*)"', self.prop(p, 'Signals') or '')
+            signals                 = self._strings(self.prop(p, 'Signals'))
             w                       = self._width(schematic, entry)
             for s in signals:
                 label               = entry if len(signals) == 1 else s if entry.lower() in probe.lower() else f"{entry} {s}"
@@ -392,23 +446,31 @@ class SignalNames:
                 return k + 1
         return None
 
+    def _log(self, depth, text):
+        self.steps.append(('  ' * min(depth, 30)) + text)
+
     def _trace_input(self, scope, name, terminal, stops, depth):
         src                         = self._source(scope.sch, name, terminal)
-        return self._trace(scope, src[0], src[1], stops, depth + 1) if src else None
+        if not src:
+            self._log(depth, f"STOP: nothing connected to input {terminal} of '{name}' in {scope.path()}")
+            return None
+        return self._trace(scope, src[0], src[1], stops, depth + 1)
 
     def _trace(self, scope, name, terminal, stops=frozenset(), depth=0):
         """Entries of output `terminal` of component `name` in scope. stops: scopes whose input ports end the trace (MARK)."""
         comp                        = self.component(scope.sch, name)
         if comp is None or depth > 300:
+            self._log(depth, f"STOP: no component '{name}' in {scope.path()}" if comp is None else 'STOP: too deep (loop?)')
             return None
         typ                         = self.prop(comp, 'Type')
-        if typ == 'PlecsProbe':
+        self._log(depth, f"{scope.path()}: '{name}' ({typ}) output {terminal}")
+        if typ == 'PlecsProbe' or self.kids(comp, 'Probe'):                     # probe: any block with Probe entries
             out                     = []
             for p in self.kids(comp, 'Probe'):
                 target              = self.prop(p, 'Component')
                 tscope, tcomp       = self._by_path(scope, self.prop(p, 'Path'), target)
                 order               = [self.prop(m, 'Name') for m in self.kids(self.content(tcomp), 'MaskProbe')] if tcomp else []
-                signals             = re.findall(r'"([^"]*)"', self.prop(p, 'Signals') or '')
+                signals             = self._strings(self.prop(p, 'Signals'))
                 for s in sorted(signals, key=lambda s: order.index(s) if s in order else len(order)):   # PLECS: mask probe order
                     entries         = self.labels.get(f"{target}:{s}")
                     entries         = [(l, '') for l in entries] if entries else self._mask_entries(tcomp, tscope, s)
@@ -416,7 +478,7 @@ class SignalNames:
                         entries     = [('', entries[0][1])]                     # scalar: no element label
                     out            += [(target, s, l, h) for l, h in entries] if entries else [(target, s, '', '')]
             return out
-        if typ == 'SignalMux':
+        if typ in ('SignalMux', 'Mux'):
             width                   = self.param(comp, 'Width') or '1'
             nums                    = [int(float(x)) for x in re.findall(r'-?\d+(?:\.\d+)?', width)]
             widths                  = nums if width.strip().startswith('[') else [1] * (nums[0] if nums else 1)
@@ -430,11 +492,20 @@ class SignalNames:
             return out
         if typ == 'Input':                                                      # port: continue outside the block
             if scope.owner is None:
+                self._log(depth, 'STOP: input port at the top level of the model')
                 return None
             if id(scope) in stops:
                 return [MARK]
-            n                       = self._terminal_number(scope.owner, 'Input', self.param(comp, 'Index'))
-            return self._trace_input(scope.parent, self.prop(scope.owner, 'Name'), n, stops, depth) if n else None
+            index                   = self.param(comp, 'Index')
+            if index is None:                                                   # no Index: the only input port, or its order
+                ports               = [c for c in self.kids(scope.sch, 'Component') if self.prop(c, 'Type') == 'Input']
+                index               = str(ports.index(comp) + 1)
+            n                       = self._terminal_number(scope.owner, 'Input', index)
+            if not n:
+                terms               = [(self.prop(t, 'Type'), self.prop(t, 'Index')) for t in self._terminals(scope.owner)]
+                self._log(depth, f"STOP: input port '{name}' (Index {index}) has no matching terminal on '{self.prop(scope.owner, 'Name')}': {terms}")
+                return None
+            return self._trace_input(scope.parent, self.prop(scope.owner, 'Name'), n, stops, depth)
         if typ == 'From':
             tag                     = self.param(comp, 'Tag')
             gotos                   = [(s, c) for s, c in self.walk(scope) if self.prop(c, 'Type') == 'Goto' and self.param(c, 'Tag') == tag] + \
@@ -443,6 +514,7 @@ class SignalNames:
                 res                 = self._trace_input(s, self.prop(g, 'Name'), 1, stops, depth)
                 if res:
                     return res
+            self._log(depth, f"STOP: no Goto with tag '{tag}' gives a signal ({len(gotos)} found)")
             return None
         if typ in self.PASS_THROUGH:
             return self._trace_input(scope, name, 1, stops, depth)
@@ -471,7 +543,8 @@ class SignalNames:
 
     def tofiles(self):
         """(scope, To File component) of every To File block of the model."""
-        return [(s, c) for s, c in self.walk() if self.prop(c, 'Type') == 'ToFile']
+        return [(s, c) for s, c in self.walk() if self.prop(c, 'Type') == 'ToFile'
+                or (self.param(c, 'WriteSignalNames') is not None and self.param(c, 'Filename') is not None)]
 
     def traced(self, n_columns=None, tofile=None):
         """Entries of the input of the To File block named tofile (else the one whose width is n_columns, else the first)."""
@@ -555,10 +628,13 @@ class SignalNames:
             out                    += [f"CSV header: {len(header)} columns after time: {header[:12]}{' ...' if len(header) > 12 else ''}"]
         tofiles                     = self.tofiles()
         for s, c in tofiles:
+            self.steps              = []
             res                     = [e for e in (self._trace_input(s, self.prop(c, 'Name'), 1, frozenset(), 0) or []) if e != MARK]
             out                    += [f"To File '{self.prop(c, 'Name')}' in {s.path()}: input from {self._source(s.sch, self.prop(c, 'Name'), 1)}, "
                                        f"{len(res)} signals"]
             out                    += [f"    {k + 1:3d}  {self._name(a, b, l)}" for k, (a, b, l, _) in enumerate(res)]
+            if not res or any(st.lstrip().startswith('STOP') for st in self.steps):
+                out                += ['  trace (where it stops):'] + [f"    {st}" for st in self.steps[:80]] +                                       ([f"    ... {len(self.steps) - 80} more steps"] if len(self.steps) > 80 else [])
         if not tofiles:
             out                    += ['no To File block found in the model']
         return NL.join(out)
