@@ -42,13 +42,6 @@ TSIM           =  0.4                                              # simulation 
 TSAVE          =  TSIM - 0.05                                      # time point at which the data is saved [s]
 #? -------------------------------------------------------------------------------
 
-Sim_param      =  {
-                  'tSim'            : TSIM,                                                                                                             #? [s]     - Total simulation time
-                  'load_tflip'      : TSIM/2,                                                                                                           #? [s]     - Time at which the load changes state
-                  'maxStep'         : 1e-3,                                                                                                             #? [s]     - Maximum simulation time step
-                  'ZeroCross'       : 1000,                                                                                                             #? [/]     - Zero-crossing detection limit
-                  'rel_tol'         : 1e-3                                                                                                              #? [/]     - Relative tolerance for the numerical solver (PLECS default; 1e-7 was ~4x slower for < 0.02 % difference)
-               }
 Configs        =  {
                   'Grid'            : 1,                                                                                                                #? [/]     - EVSE/GRID: 1 1 PH, 2 3 PH
                   'AC_Filter'       : 1,                                                                                                                #? [/]     - Power/EMI FILTER: 1 1PH, 2 3PH, 3 Pass
@@ -56,11 +49,25 @@ Configs        =  {
                   'Cx1'             : 2,                                                                                                                #? [/]     - EMI filter Cx1, Passives/C: 1 Ideal, 2 Real
                   'Cy1'             : 2,                                                                                                                #? [/]     - EMI filter Cy1, Passives/C: 1 Ideal, 2 Real
                   'Cy2'             : 2,                                                                                                                #? [/]     - EMI filter Cy2, Passives/C: 1 Ideal, 2 Real
+                  'CMC'             : 2,                                                                                                                #? [/]     - EMI filter common-mode choke, Magnatic Components/Choke: 1 Ideal (L, Lm), 2 Real (+ R, Rm)
+                  'DMC'             : 2,                                                                                                                #? [/]     - EMI filter differential-mode choke, Magnatic Components/Choke: 1 Ideal, 2 Real
                   'PFC'             : 1,                                                                                                                #? [/]     - Power/PFC (and PFC CTRL): 1 TPB 2 Leg, 2 TPB 3 Leg, 3 TPB Diodes
+                  'PFC_Choke'       : 2,                                                                                                                #? [/]     - PFC boost choke, Magnatic Components/Choke: 1 Ideal (L, Lm), 2 Real (+ R, Rm)
                   'PFC_SW'          : 2,                                                                                                                #? [/]     - PFC switches, Switches/FET: 1 Ideal, 2 Real (physical equivalent circuit)
                   'PFC_SW_BD'       : 2,                                                                                                                #? [/]     - Body diode of the Real switch, Switches/D: 1 Ideal, 2 Real (charge-control recovery)
                   'DCLink'          : 2,                                                                                                                #? [/]     - DC-link capacitor, Passives/C: 1 Ideal, 2 Real
-                  'Load'            : 1                                                                                                                 #? [/]     - Passives/Load: 1 RL, 2 RL Parallel
+                  'Load'            : 1,                                                                                                                #? [/]     - Passives/Load: 1 RL, 2 RL Parallel
+                  'WarmStart'       : 0                                                                                                                 #? [/]     - Start: 0 from the pre-charge with soft start (TSIM), 1 at the operating point (Sim_param.warm_tSim)
+               }
+Sim_param      =  {
+                  'tSim'            : TSIM,                                                                                                             #? [s]     - Total simulation time
+                  'load_tflip'      : TSIM/2,                                                                                                           #? [s]     - Time at which the load changes state
+                  'maxStep'         : 1e-3,                                                                                                             #? [s]     - Maximum simulation time step
+                  'ZeroCross'       : 1000,                                                                                                             #? [/]     - Zero-crossing detection limit
+                  'rel_tol'         : 1e-3,                                                                                                             #? [/]     - Relative tolerance for the numerical solver (PLECS default; 1e-7 was ~4x slower for < 0.02 % difference)
+                  'warm_start'      : Configs['WarmStart'],                                                                                             #? [/]     - 1: start at the operating point (DC link at Vref, power loop at Pout, no soft start) for warm_tSim
+                  'warm_tSim'       : 0.06,                                                                                                             #? [s]     - Simulation time with warm start (3 line cycles: load step after 1.5, last cycle saved)
+                  'warm_t_en'       : 0.2e-3,                                                                                                           #? [s]     - Controller enable with warm start (sensor filters settled)
                }
 
 #! Where each configuration is written in ModelVars (used to apply a mode).
@@ -71,18 +78,22 @@ CONFIG_PATHS   =  {
                   'Cx1'             : [('AC_Filter', 'Cx1', 'Config')],
                   'Cy1'             : [('AC_Filter', 'Cy1', 'Config')],
                   'Cy2'             : [('AC_Filter', 'Cy2', 'Config')],
+                  'CMC'             : [('AC_Filter', 'CMC', 'Config')],
+                  'DMC'             : [('AC_Filter', 'DMC', 'Config')],
                   'PFC'             : [('PFC', 'Config')],
+                  'PFC_Choke'       : [('PFC', 'Choke', 'Config')],
                   'PFC_SW'          : [('PFC', 'SW', 'Config')],
                   'PFC_SW_BD'       : [('PFC', 'SW', 'therm_body_diode', 'Config')],
                   'DCLink'          : [('DCLink', 'Config')],
-                  'Load'            : [('Load', 'Config')]
+                  'Load'            : [('Load', 'Config')],
+                  'WarmStart'       : [('Sim_param', 'warm_start')]
                }
 
 #! Modes: configuration presets selected in main.py with MODE (None = Configs as above). Grid, PFC topology and load
-#! keep their Configs value. The EMI filter chokes (CMC, DMC) are fixed to Ideal inside Power/EMI FILTER.
+#! keep their Configs value.
 MODES          =  {
-                  'ideal'           : {'AC_Filter': 3, 'Cx': 1, 'Cx1': 1, 'Cy1': 1, 'Cy2': 1, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_BD': 1},                #? [/]     - EMI filter Pass, ideal capacitors and switches (DC link starts at 0 V, see Derived): fastest
-                  'real'            : {'AC_Filter': 1, 'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_BD': 2}                 #? [/]     - EMI filter on, real capacitors, physical switches and body diodes (switching detail, slow)
+                  'ideal'           : {'AC_Filter': 3, 'Cx': 1, 'Cx1': 1, 'Cy1': 1, 'Cy2': 1, 'CMC': 1, 'DMC': 1, 'PFC_Choke': 1, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_BD': 1, 'WarmStart': 0},   #? [/]     - EMI filter Pass, ideal capacitors, chokes and switches (DC link starts at 0 V, see Derived): fastest
+                  'real'            : {'AC_Filter': 1, 'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'CMC': 2, 'DMC': 2, 'PFC_Choke': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_BD': 2, 'WarmStart': 1}    #? [/]     - EMI filter on, real capacitors and chokes, physical switches and body diodes (switching detail, slow)
                }
 ToFile         =  {
                   'Ts'              : 0,                                                                                                                #? [s]     - Sampling time for saving data
@@ -102,6 +113,7 @@ AC_Filter      =  {                                                             
                   'Config'        : Configs['AC_Filter'],                                                                                             #? [/]      - Configuration of the EMI filter (1 = 1PH, 2 = 3PH, 3 = Pass)
                   'Ll'            : 2e-6,                                                                                                             #? [H]      - Line / neutral series inductance L1, L5 (wiring between the two stages)
                   'CMC'           : {                                                                                                                 # common-mode choke, 2 coupled windings (nanocrystalline, 10 A)
+                     'Config'     : Configs['CMC'],                                                                                                   #? [/]      - 1 Ideal (L, Lm), 2 Real (+ R, Rm) (Magnatic Components/Choke)
                      'L1'         : 4.7e-3,                                                                                                           #? [H]      - Self inductance of winding 1 (CMC 4.7 mH; leakage 23.5 uH per winding = stage-1 DM inductance)
                      'L2'         : 4.7e-3,                                                                                                           #? [H]      - Self inductance of winding 2 (CMC 4.7 mH; leakage 23.5 uH per winding = stage-1 DM inductance)
                      'R1'         : 30e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 1
@@ -112,6 +124,7 @@ AC_Filter      =  {                                                             
                      'i2'         : 0                                                                                                                 #? [A]      - Initial current in winding 2
                   },
                   'DMC'           : {                                                                                                                 # differential-mode choke, 2 uncoupled windings (powder core, 10 A)
+                     'Config'     : Configs['DMC'],                                                                                                   #? [/]      - 1 Ideal (L, Lm), 2 Real (+ R, Rm) (Magnatic Components/Choke)
                      'L1'         : 120e-6,                                                                                                           #? [H]      - Self inductance of winding 1 (DM choke 120 uH)
                      'L2'         : 120e-6,                                                                                                           #? [H]      - Self inductance of winding 2 (DM choke 120 uH)
                      'R1'         : 25e-3,                                                                                                            #? [Ohm]    - DC resistance of winding 1
@@ -124,8 +137,8 @@ AC_Filter      =  {                                                             
                   'Cx'            : {                                                                                                                 # X2 capacitor, grid side (Passives/C)
                      'Config'     : Configs['Cx'],                                                                                                      #? [/]      - 1 Ideal, 2 Real (Passives/C)
                      'Cap_s'      : 1e-6,                                                                                                             #? [F]      - X2 film capacitance, 1 uF / 310 VAC
-                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 1)
-                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 1)
+                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 2)
+                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 2)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
@@ -134,8 +147,8 @@ AC_Filter      =  {                                                             
                   'Cx1'           : {                                                                                                                 # X2 capacitor, PFC side (Passives/C)
                      'Config'     : Configs['Cx1'],                                                                                                     #? [/]      - 1 Ideal, 2 Real (Passives/C)
                      'Cap_s'      : 1e-6,                                                                                                             #? [F]      - X2 film capacitance, 1 uF / 310 VAC
-                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 1)
-                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 1)
+                     'Resr_s'     : 10e-3,                                                                                                            #? [Ohm]    - Equivalent series resistance (used with Config 2)
+                     'Lesl_s'     : 10e-9,                                                                                                            #? [H]      - Equivalent series inductance (used with Config 2)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
                      'Vinit'      : 0,                                                                                                                #? [V]      - Initial voltage
@@ -146,7 +159,7 @@ AC_Filter      =  {                                                             
                   'Cy1'           : {                                                                                                                 # Y capacitor line -> PE (Passives/C)
                      'Config'     : Configs['Cy1'],                                                                                                     #? [/]      - 1 Ideal, 2 Real (Passives/C)
                      'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
-                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 2)
                      'Lesl_s'     : 0,                                                                                                                #? [H]      - Equivalent series inductance (0: a Y-cap ESL with ideal-edge commutation forces a current jump; resonance ~48 MHz, not resolved)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
@@ -156,7 +169,7 @@ AC_Filter      =  {                                                             
                   'Cy2'           : {                                                                                                                 # Y capacitor neutral -> PE (Passives/C)
                      'Config'     : Configs['Cy2'],                                                                                                     #? [/]      - 1 Ideal, 2 Real (Passives/C)
                      'Cap_s'      : 2.2e-9,                                                                                                           #? [F]      - Y1 ceramic capacitance, 2.2 nF (leakage < 0.2 mA at 265 V)
-                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 1)
+                     'Resr_s'     : 0.2,                                                                                                              #? [Ohm]    - Equivalent series resistance (used with Config 2)
                      'Lesl_s'     : 0,                                                                                                                #? [H]      - Equivalent series inductance (0: a Y-cap ESL with ideal-edge commutation forces a current jump; resonance ~48 MHz, not resolved)
                      'Npara'      : 1,                                                                                                                #? [/]      - Number of parallel capacitors
                      'Nseri'      : 1,                                                                                                                #? [/]      - Number of series capacitors
@@ -175,10 +188,10 @@ Switches       =  {
                      'Rgoff'          : 2.5,                                                                                                          #? [Ohm]    - External turn-off gate resistance
                      'ron_mosfet'     : 21e-3,                                                                                                        #? [Ohm]    - R_DS(on) at 25 °C (C3M0021120K: 21 mOhm typ, 1200 V / 100 A)
                      'Iinit'          : 0,                                                                                                            #? [A]      - Initial current through the switch
-                     'therm_body_diode': {                                                                                                            # body diode (Switches/D), used by FET configs 1 and 3
+                     'therm_body_diode': {                                                                                                            # body diode (Switches/D), used by FET config 2 (Real)
                         'Config'        : Configs['PFC_SW_BD'],                                                                                         #? [/]     - Diode config: 1 Ideal (vf_diode, ron_diode), 2 Real (charge-control recovery)
-                        #! ---- config 1: Diode Thermal
-                        'therm_diode'   : 'file:C3M0021120K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib)
+                        #! ---- config 1: Ideal (uses vf_diode, ron_diode)
+                        'therm_diode'   : 'file:C3M0021120K_bodydiode',                                                                               #? [/]      - Thermal description of the body diode (Thermal Lib, not used by the Ideal / Real configs)
                         'vf_diode'      : 4.5,                                                                                                        #? [V]      - Body diode forward voltage
                         'ron_diode'     : 5e-3,                                                                                                       #? [Ohm]    - Body diode on-state resistance
                         't_init'        : 25,                                                                                                         #? [°C]     - Initial junction temperature of the body diode
@@ -186,7 +199,7 @@ Switches       =  {
                         'Case_Cth'      : 0,                                                                                                          #? [J/K]    - Thermal capacitance of the diode case node (0: no extra thermal state, ~4x faster)
                         'Case_Tinit'    : 25,                                                                                                         #? [°C]     - Initial temperature of the diode case node
                         'Case_Amb_rth'  : 0.1,                                                                                                        #? [K/W]    - Thermal resistance diode case -> switch thermal port
-                        #! ---- config 2: Physical Discrete (charge-control reverse recovery), used as a die-level body diode
+                        #! ---- config 2: Real (charge-control reverse recovery), used as a die-level body diode
                         'nPara'         : 1,                                                                                                          #? [/]      - Number of parallel diodes (= nPara of the switch)
                         'VI'            : {                                                                                                           # forward curve at Vgs = -4 V (vendor table), I = 0 column = knee voltage
                            'T'          : [-40, 25, 175],                                                                                             #? [°C]     - Temperature axis
@@ -208,7 +221,7 @@ Switches       =  {
                         'Cj'            : {'V': [0], 'C': [1e-12]},                                                                                   #? [V],[F]  - Junction capacitance (already part of Coss)
                         'Roff'          : 1e9,                                                                                                        #? [Ohm]    - Leakage resistance
                         'Aval'          : {'Vbr': 0, 'Rav': 1},                                                                                       #? [V],[Ohm] - Disabled (avalanche is in the channel model)
-                        'FR'            : {'Vfr': 0, 'IF': 1, 'tfr': 0},                                                                              #? [V],[A],[s] - No forward recovery
+                        'FR'            : {'Vfr': 0.5, 'IF': 50, 'tfr': 0},                                                                           #? [V],[A],[s] - No forward recovery (tfr = 0); Vfr/IF = 10 mOhm across the recovery L keeps the junction solvable (1 uOhm floor: ~16x slower)
                         'Pkg'           : {'La': 0, 'Lk': 0, 'Rp': 100},                                                                              #? [H],[H],[Ohm] - No package: the FET package is in series
                         'Th'            : {'Rth': [1e-3], 'Cth': [1e-4], 'Tinit': 25}                                                                 #? [K/W],[J/K],[°C] - Die -> FET junction (same die: near zero)
                      },
@@ -221,7 +234,7 @@ Switches       =  {
                      'Rth'            : 0.2,                                                                                                          #? [K/W]    - Total thermal resistance junction -> heatsink
                      'foster_rth'     : [0.0472 ,0.0688],                                                                                             #? [/]      - Foster representation of the thermal resistance
                      'foster_cth'     : [0.95 , 2.4],                                                                                                 #? [/]      - Foster representation of the thermal capacitance
-                     #! ---- FET config 3: physical equivalent circuit (datasheet Rev.4 + vendor Thermal Lib model, see 0000_libraries/Plecs/Device Models/C3M0021120K.m)
+                     #! ---- FET config 2 (Real): physical equivalent circuit (datasheet Rev.4 + vendor Thermal Lib model, see 0000_libraries/Plecs/Device Models/C3M0021120K.m)
                      'Drv'            : {                                                                                                             # gate driver (totem pole, separate on/off paths)
                         'Von'     : 15,                                                                                                               #? [V]      - Turn-on gate voltage
                         'Voff'    : -4,                                                                                                               #? [V]      - Turn-off gate voltage
@@ -234,7 +247,7 @@ Switches       =  {
                         'Ls'      : 6e-9,                                                                                                             #? [H]      - Power source lead
                         'Lcs'     : 1e-9,                                                                                                             #? [H]      - Common source (gate + power loop); ~7 nH for a TO-247-3
                         'Lk'      : 6e-9,                                                                                                             #? [H]      - Kelvin source lead
-                        'Rp'      : 100                                                                                                               #? [Ohm]    - Damping resistance across each lead inductance
+                        'Rp'      : 20                                                                                                                #? [Ohm]    - Damping resistance across each lead inductance (~4.5x the lead/Coss impedance: realistic ringing; 100 Ohm rang ~1.7x longer to simulate, same losses)
                      },
                      'Rg_int'         : 3.3,                                                                                                          #? [Ohm]    - Internal gate resistance
                      'Ch'             : {                                                                                                             # channel (fitted to Fig. 1-3, 6, 11 and the vendor Vds(Id, Tj) tables)
@@ -281,8 +294,9 @@ Switches       =  {
 PFC_SWITCH     = 'C3M0021120K'                                                                                                                           # device of Switches used by the PFC stage
 PFC            =  {
                   'Config'          : Configs['PFC'],                                                                                                    #? [/]     - Configuration of the PFC stage (also selects the PFC CTRL configuration)
-                  'Choke'           : {
-                     'L1'           : 240e-6,                                                                                                            #? [H]      - Inductance of the first choke winding (boost inductor; L_boost = 248 uH -> ~30 % p-p ripple at 85 Vrms, 80 kHz)
+                  'Choke'           : {                                                                                                                  # boost choke (Magnatic Components/Choke)
+                     'Config'       : Configs['PFC_Choke'],                                                                                              #? [/]      - 1 Ideal (L, Lm), 2 Real (+ R, Rm)
+                     'L1'           : 240e-6,                                                                                                           #? [H]      - Inductance of the first choke winding (boost inductor; L_boost = 248 uH -> ~30 % p-p ripple at 85 Vrms, 80 kHz)
                      'L2'           : 10e-6,                                                                                                             #? [H]      - Inductance of the second choke winding
                      'R1'           : 0.01,                                                                                                              #? [Ohm]    - Resistance of the first choke winding
                      'R2'           : 0.01,                                                                                                              #? [Ohm]    - Resistance of the second choke winding
@@ -322,13 +336,14 @@ CTRL           =  {                                                             
                      'Pmax'                  : 1.5e3,                                                                                                    #? [W]     - Power command limit (voltage PI output)
                      'Ipk_max'               : 2 * 1.5e3 / (2**0.5 * 85),                                                                                #? [A]     - Peak current reference limit (Pmax at 85 Vrms)
                      'Vdc_min'               : 50,                                                                                                       #? [V]     - Lower clamp of Vdc used in the duty feedforward
+                     'Vrms_min'              : 80,                                                                                                       #? [V]     - Lower clamp of the line RMS in Iref (the RMS block starts from an empty window: ~0 V in the first line cycle)
                      'Dmax'                  : 0.98,                                                                                                     #? [/]     - Maximum duty of the active fast-leg switch
                      'Vzc'                   : 20,                                                                                                       #? [V]     - |Vac| below which all gates are blanked (zero crossing)
                      'eps_s'                 : 0.1,                                                                                                      #? [V]     - Offset in sign(vac) = vac/(|vac|+eps_s)
                      't_ss'                  : 0.05,                                                                                                     #? [s]     - Soft-start ramp time of Vref from sqrt(2)*Vin to Vref
                      't_en'                  : 1e-3,                                                                                                     #? [s]     - Controller enable: gates off and Iref = 0 until the sensors / ADC readings are valid
                      'P0'                    : 0,                                                                                                        #? [W]     - Initial value of the voltage-loop integrator (power command at enable)
-                     't_car'                 : 15/16/80e3                                                                                                #? [s]     - PWM carrier delay: ADC samples Ts/16 after the valley (compensates the current-sensor delay)
+                     't_car'                 : 1/80e3 - 1/(2*np.pi*200e3)                                                                                #? [s]     - PWM carrier delay: Ts - current-sensor delay 1/(2*pi*Sensors.Iin.BW), so the ADC samples the average iL in both half-cycles
                   }
 Load           =  {
                      'Config'                : Configs['Load'],                                                                                          #? [/]     - Configuration of the load
@@ -375,7 +390,7 @@ Sensors        =  {                                                             
                      'BW2'     : 275e3,                                                                                                               #? [Hz]     - Isolated amplifier bandwidth
                      'err_g'   : 0,                                                                                                                   #? [/]      - Gain error
                      'err_ofs' : 0,                                                                                                                   #? [V]      - Offset error
-                     'Vmin'    : 0,                                                                                                                   #? [V]      - Output clamp low
+                     'Vmin'    : -0.3,                                                                                                                #? [V]      - Output clamp low (ADC input protection diode; 0 V would sit on the clamp at Vdc = 0 and chatter)
                      'Vmax'    : 3.3,                                                                                                                 #? [V]      - Output clamp high
                   }
                }
@@ -432,7 +447,7 @@ AnalysisOpts   =  {
                   'Jacobian_rel_tol'      :  1e-6
 
               }
-#! Result CSV columns: names and units are read from the To File header (signal names on) by plecs.ProbeNames; the
+#! Result CSV columns: names and units are read from the To File header and the model by signals.SignalNames; the
 #! elements of vector probes are named after the library mask probes. Labels only for vectors no library block names:
 SIGNAL_LABELS  =  {                                                                                            # 'component:probe signal' -> element names
                   'PFC:Gate Signals'                      : ['HS1', 'LS1', 'HS2', 'LS2', 'HS3', 'LS3'],                # g_PFC order of the PFC CTRL

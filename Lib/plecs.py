@@ -12,7 +12,7 @@
 #?
 #? Name:        plecs.py
 #? Purpose:     interface: XML-RPC (simpy), scopes, result folders, sweep points.
-#?              Result signal names (ProbeNames), code generation and RT Box (RTBox).
+#?              Code generation and RT Box (RTBox).
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
@@ -24,7 +24,6 @@ import copy
 import glob
 import itertools
 import math
-import re
 import time
 import xmlrpc.client
 import subprocess
@@ -329,150 +328,6 @@ class Sweep:
             Sweep.set_output_files(mv, paths, run_id, sim_idx)
             points.append((label, mv))
         return points
-#?----------------------------------------------------------------------------------------------------------------------------------------
-class ProbeNames:
-    """Names and units of the result CSV columns, read from PLECS instead of being written by hand.
-    The model's To File writes a header (WriteSignalNames on): 'component:probe signal' per scalar and
-    'component:probe signal:k' per element of a vector. Vector elements are named after the entries of the referenced
-    library block's mask probe (active configuration: component, or component + signal when it has several signals);
-    a placeholder Constant counts with the width of its value (zeros(a,b)). Elements that cannot be resolved keep their
-    index, or take their names from labels {'component:probe signal': [names]}. Units are guessed from the probe and
-    underlying signal names (UNIT_KEYWORDS: keyword -> unit, first match wins)."""
-
-    UNIT_KEYWORDS                   = {
-                                        'gate'          : '[ / ]',
-                                        'temperature'   : '[ °C ]',
-                                        'temp'          : '[ °C ]',
-                                        'voltage'       : '[ V ]',
-                                        'current'       : '[ A ]',
-                                        'loss'          : '[ W ]',
-                                        'power'         : '[ W ]',
-                                      }
-
-    @staticmethod
-    def header(csv_file):
-        """Signal names of the To File header, without the time column."""
-        with open(csv_file, encoding='utf-8', errors='ignore') as f:
-            return [h.strip().strip('"') for h in f.readline().split(',')][1:]
-
-    @staticmethod
-    def _find(node, name):
-        """First Component named name in the block tree."""
-        for child in node['children']:
-            if child['tag'] == 'Component' and simpy._prop(child, 'Name') == name:
-                return child
-            found                   = ProbeNames._find(child, name)
-            if found:
-                return found
-        return None
-
-    @staticmethod
-    def _param(comp, variable):
-        return next((simpy._prop(p, 'Value') for p in comp['children']
-                     if p['tag'] == 'Parameter' and simpy._prop(p, 'Variable') == variable), None)
-
-    @staticmethod
-    def _resolve(expr, modelvars):
-        """Value of a configuration expression: a number or a dotted ModelVars path ('PFC.Config')."""
-        if expr is None:
-            return None
-        if expr.strip().isdigit():
-            return int(expr)
-        try:
-            return int(Sweep.get_nested(modelvars, tuple(expr.strip().split('.'))))
-        except (KeyError, TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _width(schematic, comp):
-        """Signal width of a placeholder Constant (zeros(a,b) -> a*b); 1 otherwise."""
-        c                           = ProbeNames._find(schematic, comp) if schematic else None
-        value                       = ProbeNames._param(c, 'Value') if c and simpy._prop(c, 'Type') == 'Constant' else None
-        dims                        = [int(x) for x in re.findall(r'\d+', value)] if value and value.startswith(('zeros', 'ones')) else []
-        return math.prod(dims) if dims else 1
-
-    _LIBS                           = {}                                        # parsed library files of the current read(): {path: tree}
-
-    @staticmethod
-    def _library(lib_file):
-        if lib_file not in ProbeNames._LIBS:
-            with open(lib_file, encoding='utf-8', errors='ignore') as f:
-                ProbeNames._LIBS[lib_file] = simpy._parse_blocks(f.readlines())
-        return ProbeNames._LIBS[lib_file]
-
-    @staticmethod
-    def _probe_entries(model_root, lib_dir, modelvars, comp_name, probe):
-        """[(element label, underlying signal)] of the mask probe `probe` of the library block referenced by comp_name,
-        for its active configuration; None if it cannot be resolved."""
-        comp                        = ProbeNames._find(model_root, comp_name)
-        src                         = simpy._prop(comp, 'SrcComponent') if comp else None
-        if not src:
-            return None
-        parts                       = re.split(r'(?<!\\)/', src.replace('\\\\', '\\'), maxsplit=1)   # 'Power/EVSE\/GRID' -> library, block
-        if len(parts) != 2:
-            return None
-        lib_file                    = Path(lib_dir) / f"{parts[0]}.plecs"
-        if not lib_file.exists():
-            return None
-        blk                         = ProbeNames._find(ProbeNames._library(lib_file), parts[1].replace('\\/', '/'))
-        if blk is None:
-            return None
-        configs                     = next((c for c in blk['children'] if c['tag'] == 'Configurations'), None)
-        active, schematic           = None, blk
-        if configs is not None:
-            names                   = [v for k, v in configs['props'] if k == 'Name']
-            idx                     = ProbeNames._resolve(ProbeNames._param(comp, 'Configuration'), modelvars)
-            if idx is None or not 1 <= idx <= len(names):
-                return None
-            active                  = names[idx - 1]
-            schematic               = [c for c in configs['children'] if c['tag'] == 'Schematic'][idx - 1]
-        mp                          = next((c for c in blk['children'] if c['tag'] == 'MaskProbe' and simpy._prop(c, 'Name') == probe), None)
-        if mp is None:
-            return None
-        out                         = []
-        for p in (c for c in mp['children'] if c['tag'] == 'Probe'):
-            if active is not None and simpy._prop(p, 'Path') not in (None, '', active):
-                continue
-            entry                   = simpy._prop(p, 'Component')
-            signals                 = re.findall(r'"([^"]*)"', simpy._prop(p, 'Signals') or '')
-            w                       = ProbeNames._width(schematic, entry)
-            for s in signals:
-                label               = entry if len(signals) == 1 else s if entry.lower() in probe.lower() else f"{entry} {s}"
-                out                += [(label if w == 1 else f"{label} {k}", s) for k in range(1, w + 1)]
-        return out
-
-    @staticmethod
-    def read(csv_file, model_path, lib_dir, modelvars, labels=None, unit_keywords=None):
-        """(names, units) of the result columns of csv_file (after time): 'component probe [element]' and its unit."""
-        labels                      = labels or {}
-        keywords                    = unit_keywords or ProbeNames.UNIT_KEYWORDS
-        ProbeNames._LIBS.clear()                                                # libraries may have changed since the last read
-        with open(model_path, encoding='utf-8', errors='ignore') as f:
-            model_root              = simpy._parse_blocks(f.readlines())
-        header                      = ProbeNames.header(csv_file)
-        split                       = lambda h: (h.rpartition(':')[0], h.rpartition(':')[2]) if h.rpartition(':')[2].isdigit() else (h, '')
-        groups                      = {}                                        # 'component:probe' -> number of columns
-        for h in header:
-            groups[split(h)[0]]     = groups.get(split(h)[0], 0) + 1
-        cache, names, hints         = {}, [], []
-        for h in header:
-            key, idx                = split(h)
-            comp, _, probe          = key.partition(':')
-            if key not in cache:
-                entries             = [(l, '') for l in labels[key]] if key in labels else \
-                                      ProbeNames._probe_entries(model_root, lib_dir, modelvars, comp, probe)
-                cache[key]          = entries if entries and (not idx or len(entries) == groups[key]) else None
-            entries                 = cache[key]
-            title                   = probe if probe.lower().startswith(comp.lower()) else f"{comp} {probe}"   # 'Load:Load Voltage' -> 'Load Voltage'
-            if idx:
-                label, signal       = entries[int(idx) - 1] if entries else (idx, '')
-                names.append(f"{title} {label}")
-            else:
-                signal              = entries[0][1] if entries else ''
-                names.append(title)
-            hints.append(f"{probe} {signal}".lower())
-        units                       = [next((u for kw, u in keywords.items() if kw in h), '[ / ]') for h in hints]
-        return names, units
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class RTBox:
     """

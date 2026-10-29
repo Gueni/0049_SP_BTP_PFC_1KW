@@ -152,10 +152,23 @@ class Derived:
         Ctrl['Ki_i']               = (2 * np.pi * Ctrl['fc_i'])**2 / 10 * Ctrl['L_boost']
         Ctrl['Kp_v']               = 2 * np.pi * Ctrl['fc_v'] * Ctrl['C_out'] * Ctrl['Vref']
         Ctrl['Ki_v']               = (2 * np.pi * Ctrl['fc_v'])**2 / 2 * Ctrl['C_out'] * Ctrl['Vref']
-        Ctrl['t_car']              = 15 / 16 / Ctrl['fsw']                                   # carrier delay: ADC samples Ts/16 after the valley
+        Ctrl['t_car']              = 1 / Ctrl['fsw'] - 1 / (2 * np.pi * mdlvar['Sensors']['Iin']['BW'])   # carrier delay: ADC samples one sensor delay after the valley
         Ctrl['Pout']               = Ld['Pout']                                              # rated power of the controller = load power
         Ld['R']                    = Ctrl['Vref']**2 / Ld['Pout']
         Sw['Tamb']                 = Sw['T_init'] = mdlvar['Thermals']['T_amb']              # switch ambient / initial junction temperature
         mdlvar['MCU']['ADC']['Ts'] = 1 / Ctrl['fsw']                                         # ADC samples once per PWM period
+        Sim                        = mdlvar['Sim_param']
+        if Sim['warm_start']:                                                                # start at the operating point, a few line cycles
+            Sim['tSim']            = Sim['warm_tSim']
+            Sim['load_tflip']      = Sim['tSim'] / 2
+            mdlvar['ToFile']['tsave'] = Sim['tSim'] - 1 / mdlvar['Grid']['f']                # last line cycle saved
+            if DC['Config'] != 1:
+                DC['Vinit']        = -Ctrl['Vref']                                           # DC link at Vref (CDC flipped)
+            Ctrl['P0']             = Ld['Pout']                                              # power loop integrator at the load power
+            Ctrl['t_ss']           = 1e-6                                                    # no soft start
+            Ctrl['t_en']           = Sim['warm_t_en']
+            Ctrl['Vrms_min']       = 0.97 * mdlvar['Grid']['Vin']                            # line RMS valid from the start (RMS window still empty)
+        Ld['t_switch']             = Sim['tSim'] - Sim['load_tflip']
+        Ld['t_dead']               = Ld['t_switch'] / 2
         return mdlvar
 #?----------------------------------------------------------------------------------------------------------------------------------------

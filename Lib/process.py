@@ -35,7 +35,8 @@ from    pathlib                     import  Path
 from    plotly.subplots             import  make_subplots
 from    PIL                         import  Image
 from    .calc                       import  PMath
-from    .plecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, Sweep, ProbeNames
+from    .plecs                      import  OUTPUT_KEY, OUTPUT_FIELDS, Sweep
+from    .signals                    import  SignalNames
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class PPlots:
     """HTML reports of simulation results."""
@@ -49,8 +50,8 @@ class PPlots:
     #?------------------------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def units_from_names(waveforms):
-        """Unit of each waveform guessed from a keyword of its name (ProbeNames.UNIT_KEYWORDS, '[ / ]' if none matches)."""
-        return [next((u for kw, u in ProbeNames.UNIT_KEYWORDS.items() if kw in w.lower()), '[ / ]') for w in waveforms]
+        """Unit of each waveform guessed from a keyword of its name (SignalNames.UNIT_KEYWORDS, '[ / ]' if none matches)."""
+        return SignalNames.units_from_names(waveforms)
 
     @staticmethod
     def png_to_hex_base64(img_path):

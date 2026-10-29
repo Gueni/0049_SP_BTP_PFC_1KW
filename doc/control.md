@@ -77,7 +77,7 @@ The output `P*` is a **power** command in W, not a current amplitude, so the loo
 Iref = P* · |vac| / Vrms²        (Function block "Iref", limited to Ipk_max)
 ```
 
-- `Vrms` comes from a `RMS Value` block at the line frequency, initialised to `Grid.Vin`.
+- `Vrms` comes from a `RMS Value` block at the line frequency. The continuous block starts from an empty window (its `x0` is not used), so it reads ~0 V during the first line cycle. The `Vrms min` clamp (`Vrms_min`) holds it up; without it `Iref` sits at `Ipk_max` for most of the first cycle.
 - `P*/Vrms²` is the input conductance, so `Iref` is a rectified sine in phase with the line. Its RMS value is `P*/Vrms`.
 - `Ipk_max = 2·Pmax / (√2·85 V)` ≈ 25 A, the peak current at 1.5 kW and the minimum line voltage.
 
@@ -104,7 +104,7 @@ The feed-forward term `1 − |vac|/Vdc` already provides nearly the whole duty. 
 
 | Item | Detail |
 |---|---|
-| Carrier | triangle 0…1 at `fsw` = 80 kHz, delayed by `t_car` = 15/16·Ts. With `MCU.ADC.Toffs = 0` the ADC then samples Ts/16 after the valley, which compensates the delay of the current sensor, so the sample is close to the average inductor current. |
+| Carrier | triangle 0…1 at `fsw` = 80 kHz, delayed by `t_car` = Ts − 1/(2π·BW_Iin) (11.7 µs at 80 kHz). With `MCU.ADC.Toffs = 0` the ADC then samples one current-sensor delay after the valley, so it reads the average inductor current. Around the valley the current falls in one half-cycle and rises in the other, so any sampling-time error biases the two halves in opposite directions: grid DC and even harmonics (at 150 kHz with a fixed Ts/16: THD 4.7 %, −0.4 A DC; with the sensor delay: 1.4 %). |
 | Fast leg | `D_HS1 = 0.5 + sign(vac)·(0.5 − D)`. In one half-cycle LS1 is the boost switch (HS1 = 1 − D, synchronous rectifier). In the other half-cycle the roles swap (HS1 = D). LS1 is the complement of HS1. |
 | Slow leg | HS2 / LS2 follow the line polarity (`Pos`: vac > 0, `Neg`: vac < 0); each conducts for one half-cycle at 50 Hz. |
 | Zero crossing | `ZC ok = |vac| > Vzc` (20 V); all four gates are blanked below it, so no switch shoots through while the polarity changes. |
@@ -127,7 +127,7 @@ with:
 Rules of thumb:
 - **Current loop:** keep `fc_i` ≤ fsw/10. The ADC samples once per period, and the sampling and PWM delay eat phase margin quickly above that.
 - **Voltage loop:** keep `fc_v` well below 2·f_line (100 Hz), or the 100 Hz ripple enters the current reference as third-harmonic distortion. The 20 Hz LPF adds phase lag: if you raise `fc_v`, raise `f_lpf_v` with it.
-- **Derived values:** `Derived.update()` also sets `t_car = 15/16/fsw` and `MCU.ADC.Ts = 1/fsw` when fsw changes.
+- **Derived values:** `Derived.update()` also sets `t_car = 1/fsw − 1/(2π·Sensors.Iin.BW)` and `MCU.ADC.Ts = 1/fsw` when fsw (or the sensor bandwidth) changes.
 
 ## Parameters (`CTRL`)
 
@@ -143,6 +143,7 @@ Rules of thumb:
 | `Pmax` | 1.5 kW | power command limit |
 | `Ipk_max` | 25 A | current reference limit |
 | `Vdc_min` | 50 V | lower clamp of Vdc in the feed-forward |
+| `Vrms_min` | 80 V | lower clamp of the line RMS in `Iref` (0.97·`Grid.Vin` with warm start) |
 | `Dmax` | 0.98 | maximum duty |
 | `Vzc` | 20 V | zero-crossing blanking threshold |
 | `eps_s` | 0.1 V | smoothing of sign(vac) |

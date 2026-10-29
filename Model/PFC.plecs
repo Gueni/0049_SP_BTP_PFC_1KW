@@ -122,8 +122,8 @@ Plecs {
       MaskIconRotates on
       Schematic {
         Location      [0, 26; 1536, 780]
-        ZoomFactor    0.763615
-        SliderPosition [0, 0]
+        ZoomFactor    1.30959
+        SliderPosition [-1, -1]
         ShowBrowser   off
         BrowserWidth  100
         Component {
@@ -134,11 +134,11 @@ Plecs {
           Direction     up
           Flipped       off
           LabelPosition south
-          Location      [0, 24; 1536, 841]
-          State         "AAAA/wAAAAD9AAAAAgAAAAEAAAC0AAACfvwCAAAAA/sAAAAQAFoAb"
+          Location      [0, 24; 1536, 847]
+          State         "AAAA/wAAAAD9AAAAAgAAAAEAAAC0AAACovwCAAAAA/sAAAAQAFoAb"
 "wBvAG0AQQByAGUAYQAAAAAA/////wAAAIEA////+wAAABQAUwBhAHYAZQBkAFYAaQBlAHcAcwAAAA"
-"AA/////wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMBAAAANAAAAn4AAABjAP///wAAAAMAAAYAAAA"
-"AjvwBAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABUYAAAJ+"
+"AA/////wAAAGMA////+wAAAAwAVAByAGEAYwBlAHMBAAAANAAAAqIAAABjAP///wAAAAMAAAYAAAA"
+"AcPwBAAAAAfsAAAAUAEQAYQB0AGEAVwBpAGQAZwBlAHQBAAAAAAAABgAAAABEAP///wAABUYAAAKi"
 "AAAABAAAAAQAAAAIAAAACPwAAAABAAAAAgAAAAEAAAAOAFQAbwBvAGwAQgBhAHIBAAAAAP////8AA"
 "AAAAAAAAA=="
           SavedViews    "AAAAAgAAAAA="
@@ -271,38 +271,6 @@ Plecs {
             Variable      "Width"
             Value         "[1 1]"
             Show          off
-          }
-        }
-        Component {
-          Type          Reference
-          SrcComponent  "Components/Control/Filters/Total Harmonic\\nDistortio"
-"n"
-          Name          "Total Harmonic\nDistortion"
-          Show          off
-          Position      [250, 130]
-          Direction     up
-          Flipped       off
-          LabelPosition south
-          Frame         [-15, -15; 15, 15]
-          Parameter {
-            Variable      "ts"
-            Value         "0"
-            Show          off
-          }
-          Parameter {
-            Variable      "fs"
-            Value         "Grid.f"
-            Show          off
-          }
-          Terminal {
-            Type          Input
-            Position      [-15, 0]
-            Direction     left
-          }
-          Terminal {
-            Type          Output
-            Position      [19, 0]
-            Direction     right
           }
         }
         Component {
@@ -636,7 +604,7 @@ Plecs {
           LabelPosition south
           Parameter {
             Variable      "T_average"
-            Value         "1/80e3"
+            Value         "1/150e3"
             Show          off
           }
           Parameter {
@@ -680,73 +648,143 @@ Plecs {
             Signals       {}
           }
           Probe {
-            Component     "S1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS1/Ideal SW"
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 2 Leg/HS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 2 Leg/HS2/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 2 Leg/LS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 2 Leg/LS2/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS2/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS3/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS2/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS3/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC Diodes/HS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC Diodes/HS2/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC Diodes/LS1/Real/Body Diode/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "D1"
+            Path          "PFC/1PH TPB PFC Diodes/LS2/Real/Body Diode/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 2 Leg/HS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC 2 Leg/HS1/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS1/Ideal SW"
+            Path          "PFC/1PH TPB PFC 2 Leg/HS2/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 2 Leg/LS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC 2 Leg/LS1/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS1/Ideal SW"
+            Path          "PFC/1PH TPB PFC 2 Leg/LS2/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS1/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/HS3/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS2/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS1/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/HS3/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS1/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC 3 Leg/LS3/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS2/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC Diodes/HS1/Ideal SW"
+            Path          "PFC/1PH TPB PFC 3 Leg/LS3/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC Diodes/HS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC Diodes/HS1/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC Diodes/LS1/Ideal SW"
+            Path          "PFC/1PH TPB PFC Diodes/HS2/Ideal"
             Signals       {}
           }
           Probe {
             Component     "S1"
-            Path          "PFC/1PH TPB PFC Diodes/LS2/Ideal SW"
+            Path          "PFC/1PH TPB PFC Diodes/LS1/Ideal"
+            Signals       {}
+          }
+          Probe {
+            Component     "S1"
+            Path          "PFC/1PH TPB PFC Diodes/LS2/Ideal"
             Signals       {}
           }
         }
@@ -2697,7 +2735,7 @@ Plecs {
               AutoScale     1
               MinValue      0
               MaxValue      1
-              Signals       {}
+              Signals       {"IL"}
               Untangle      0
               KeepBaseline  off
               BaselineValue 0
@@ -3883,6 +3921,38 @@ Plecs {
           Direction     right
           Flipped       off
           LabelPosition south
+        }
+        Component {
+          Type          Reference
+          SrcComponent  "Components/Control/Filters/Total Harmonic\\nDistortio"
+"n"
+          Name          "Total Harmonic\nDistortion"
+          Show          off
+          Position      [250, 130]
+          Direction     up
+          Flipped       off
+          LabelPosition south
+          Frame         [-15, -15; 15, 15]
+          Parameter {
+            Variable      "ts"
+            Value         "0"
+            Show          off
+          }
+          Parameter {
+            Variable      "fs"
+            Value         "Grid.f"
+            Show          off
+          }
+          Terminal {
+            Type          Input
+            Position      [-15, 0]
+            Direction     left
+          }
+          Terminal {
+            Type          Output
+            Position      [19, 0]
+            Direction     right
+          }
         }
         Connection {
           Type          Signal
@@ -6958,6 +7028,25 @@ Plecs {
                 }
               }
               Component {
+                Type          Saturation
+                Name          "Vrms min"
+                Show          on
+                Position      [1365, 235]
+                Direction     right
+                Flipped       off
+                LabelPosition south
+                Parameter {
+                  Variable      "UpperLimit"
+                  Value         "inf"
+                  Show          off
+                }
+                Parameter {
+                  Variable      "LowerLimit"
+                  Value         "CTRL.Vrms_min"
+                  Show          off
+                }
+              }
+              Component {
                 Type          SignalMux
                 Name          "Mux Iref"
                 Show          off
@@ -9381,6 +9470,14 @@ Plecs {
               Connection {
                 Type          Signal
                 SrcComponent  "RMS Value"
+                SrcTerminal   2
+                Points        [1285, 205; 1325, 205; 1325, 235]
+                DstComponent  "Vrms min"
+                DstTerminal   1
+              }
+              Connection {
+                Type          Signal
+                SrcComponent  "Vrms min"
                 SrcTerminal   2
                 DstComponent  "Mux Iref"
                 DstTerminal   4
@@ -14364,4 +14461,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "gBLK1U8j3q9DvSK/j0ddjxfsmDK8FUdhzn9y1d0plEM="
+DemoSignature "SCFmqtLb3bDySYkMIdcanFRG5LuqgrEcsJAVq926/EA="

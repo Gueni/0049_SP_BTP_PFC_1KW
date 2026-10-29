@@ -24,8 +24,9 @@ import time
 
 from   lib              import  plecs   as  plc
 from   lib              import  vars    as  prm
-from   lib.calc         import  Derived
+from   lib.calc         import  Derived                 #! note voltage vs current phase infront ???
 from   lib.process      import  PPlots
+from   lib.signals      import  SignalNames
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal' or 'real' sets all block configurations at once (vars.MODES); None = vars.Configs.
 MODE                                   = 'ideal'
@@ -36,9 +37,9 @@ MODE                                   = 'ideal'
 #? the switch temperatures) are set by Derived.update in calc.py.
 SWEEP                                  = {
                                           'Vin'           : [230],
-                                          'Load.Pout'     : [1e3],
-                                          'fsw'           : [100e3],
-                                          'Choke.L1'      : [240e-6],
+                                          'Load.Pout'     : [100e3, 1e3],
+                                          'fsw'           : [100e3, 150e3],
+                                          'Choke.L1'      : [140e-6],
                                           'DCLink.Cap_s'  : [47e-6],
                                           'T_amb'         : [25],
                                          }
@@ -49,7 +50,7 @@ CODEGEN                                = False                                  
 RTBOX                                  = False                                                 # upload + run the generated code on the RT Box
 SCOPES                                 = None                                                  # scope names to clear/hold/save: None = all scopes in the model, [] = none
 HOLD_TRACES                            = True                                                  # hold traces after each simulation point, to save them all at the end
-SAVE_TRACES                            = False                                                 # save all traces at the end of the sweep
+SAVE_TRACES                            = True                                                 # save all traces at the end of the sweep
 PARASIM                                = False                                                 # run several sweep points in parallel
 PARANUM                                = None                                                  # max sweep points per parallel batch (None = auto from the CPU threads)
 ANALYSIS_NAME                          = ''                                                    # PLECS analysis name, for plcsim.launch_analysis
@@ -100,12 +101,13 @@ if SWEEP_EN:
                 if HOLD_TRACES: plcsim.HoldAllTraces(scopes)
 
         if SAVE_TRACES: plcsim.saveAllTraces(scopes, paths.traces.as_posix(), run_id)
-        signals, units                 = plc.ProbeNames.read(                                  # result columns: names / units from the To File header
+        signals, units                 = SignalNames.read(                                     # result columns: names / units read from the model
                                                 points[0][1][plc.OUTPUT_KEY]['ToFile_path'] ,
                                                 prm.MODEL_PATH                              ,
                                                 prm.PLECS_LIB_DIR                           ,
                                                 points[0][1]                                ,
-                                                labels  =   getattr(prm, 'SIGNAL_LABELS', None)
+                                                labels  =   getattr(prm, 'SIGNAL_LABELS', None),
+                                                units   =   True
                                                 )
         PPlots.gen_sweep_plots(
                                 points                                                              ,
