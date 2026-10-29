@@ -621,8 +621,13 @@ class SignalNames:
                                        f"(PLECS components.plecs: {self._library_file('Components') or 'not found'})"]
         missing                     = sorted({self.prop(c, 'SrcComponent') for _, c in self.walk()
                                               if self.prop(c, 'Type') == 'Reference' and self.content(c) is None})
+        builtin                     = [m for m in missing if m.startswith('Components/')]
+        missing                     = [m for m in missing if not m.startswith('Components/')]
+        if builtin:
+            out                    += [f"PLECS built-in blocks used as black boxes (named from their input, no library file needed): "
+                                       f"{len(builtin)}, e.g. {[b.rsplit('/', 1)[-1] for b in builtin[:6]]}"]
         if missing:
-            out                    += [f"library blocks not found (pass their folder as lib_dir): {missing}"]
+            out                    += [f"blocks from YOUR libraries not found (pass their folder as lib_dir): {missing}"]
         if csv_file:
             header                  = self.header(csv_file)
             out                    += [f"CSV header: {len(header)} columns after time: {header[:12]}{' ...' if len(header) > 12 else ''}"]
