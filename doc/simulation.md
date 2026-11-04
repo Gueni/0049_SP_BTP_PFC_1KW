@@ -46,12 +46,40 @@ The presets are the `MODES` dict in `vars.py`. Grid, PFC topology and load keep 
 
 | Flag | Effect |
 |---|---|
+| `STANDALONE` / `STD_POINT` | write the standalone copy `Model/PFC_std.plecs`, set to sweep point `STD_POINT` (see below) |
 | `SWEEP_EN` | run the simulation sweep |
 | `PARASIM` / `PARANUM` | run sweep points in parallel; `PARANUM = None` sizes the batches from the CPU threads |
 | `SCOPES` | scopes to clear/hold/save: `None` = every scope of the active configurations, `[]` = none |
 | `HOLD_TRACES` / `SAVE_TRACES` | keep and save the scope traces of every point |
 | `CODEGEN` | generate code with PLECS Coder (`CODEGEN_TARGET` = subsystem with code generation enabled) |
 | `RTBOX` | upload and run the generated code on the RT Box at `RTBOX_URL` |
+
+### Standalone copy (`lib/standalone.py`)
+
+`Model/PFC_std.plecs` runs from PLECS alone, without Python and without the libraries:
+
+- every library link is broken (`lib/breaklink.py`): each library block (user libraries and the PLECS built-in `Components/...`) is replaced by a copy of the block, with the mask values of the original reference;
+- every parameter is set: the ModelVars of the chosen sweep point (mode, derived values and output paths included) are written as actual values in the model's initialization commands (Simulation > Simulation Parameters > Initialization).
+
+Open it in PLECS and press Start. It gives the same result as the Python run of that point (checked sample by sample in ideal and real mode). The file is regenerated on every run of `main.py` while `STANDALONE` is on, so do not edit it by hand. To File starts saving at `ToFile.tsave`, so a run shorter than that writes an empty CSV.
+
+In another project:
+
+```python
+from lib.standalone import Standalone
+Standalone.write('model.plecs', ModelVars, ['path/to/libraries'])     # -> model_std.plecs next to the model
+```
+
+`builtins=False` keeps the links to the PLECS built-in library; `out=` sets the output file. Running `lib/standalone.py` itself (VS Code play button) uses the paths at the end of the file. Copy `breaklink.py` together with `standalone.py`.
+
+Only breaking the links (parameters left as they are, still set by ModelVars):
+
+```python
+from lib.breaklink import break_links
+break_links('model.plecs', 'path/to/libraries')                     # -> model_nolink.plecs next to the model
+```
+
+or `python lib/breaklink.py model.plecs <library folder> [--out f.plecs] [--keep-builtins]`, or the play button with the paths at the end of the file. `out='model.plecs'` overwrites the model itself.
 
 ## Outputs (`data/`, git-ignored)
 

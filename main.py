@@ -24,9 +24,10 @@ import time
 
 from   lib              import  plecs   as  plc
 from   lib              import  vars    as  prm
-from   lib.calc         import  Derived                 #! note voltage vs current phase infront ???
+from   lib.calc         import  Derived         
 from   lib.process      import  PPlots
 from   lib.signals      import  SignalNames
+from   lib.standalone   import  Standalone
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal' or 'real' sets all block configurations at once (vars.MODES); None = vars.Configs.
 MODE                                   = 'ideal'
@@ -45,6 +46,8 @@ SWEEP                                  = {
                                          }
 
 #? What to run (in this order): the sweep, then code generation, then the RT Box (RTBOX implies CODEGEN).
+STANDALONE                             = True                                                  # write Model/<model>_std.plecs: no library links, parameters of sweep point STD_POINT
+STD_POINT                              = 0                                                     # index of the sweep point the standalone copy is set to
 SWEEP_EN                               = True                                                  # run the simulation sweep
 CODEGEN                                = False                                                 # generate code (PLECS Coder) with the base ModelVars
 RTBOX                                  = False                                                 # upload + run the generated code on the RT Box
@@ -82,6 +85,11 @@ plcsim                                 = plc.simpy(
 if MODE:
         prm.Configs.update(prm.MODES[MODE])
         plc.Sweep.apply_configs(prm.ModelVars, prm.MODES[MODE], prm.CONFIG_PATHS)
+
+if STANDALONE:
+        std_label, std_vars            = plc.Sweep.build_points(prm.ModelVars, SWEEP, 'std', paths, update_derived=Derived.update)[STD_POINT]
+        print(f"standalone copy set to {std_label}")
+        Standalone.write(prm.MODEL_PATH, std_vars, prm.PLECS_LIB_DIR)
 
 plcsim.rpc_connect()
 plcsim.load_model()

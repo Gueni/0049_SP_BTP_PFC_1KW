@@ -958,12 +958,12 @@ Plecs {
           }
           Parameter {
             Variable      "ts"
-            Value         "0"
+            Value         "1/(200*Grid.f)"
             Show          off
           }
           Parameter {
             Variable      "fs"
-            Value         "50"
+            Value         "Grid.f"
             Show          off
           }
           Terminal {
@@ -3914,13 +3914,38 @@ Plecs {
           }
         }
         Component {
-          Type          Abs
-          Name          "Abs"
+          Type          Gain
+          Name          "CDC sign"
           Show          off
           Position      [1320, 155]
           Direction     right
           Flipped       off
           LabelPosition south
+          Parameter {
+            Variable      "K"
+            Value         "[-1 -1 1]"
+            Show          off
+          }
+          Parameter {
+            Variable      "Multiplication"
+            Value         "1"
+            Show          off
+          }
+          Parameter {
+            Variable      "OutputDataType"
+            Value         "11"
+            Show          off
+          }
+          Parameter {
+            Variable      "DataTypeOverflowMode"
+            Value         "1"
+            Show          off
+          }
+          Parameter {
+            Variable      "GainDataType"
+            Value         "11"
+            Show          off
+          }
         }
         Component {
           Type          Reference
@@ -4706,12 +4731,12 @@ Plecs {
           Type          Signal
           SrcComponent  "Probe28"
           SrcTerminal   1
-          DstComponent  "Abs"
+          DstComponent  "CDC sign"
           DstTerminal   1
         }
         Connection {
           Type          Signal
-          SrcComponent  "Abs"
+          SrcComponent  "CDC sign"
           SrcTerminal   2
           DstComponent  "Demux26"
           DstTerminal   1

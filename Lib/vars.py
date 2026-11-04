@@ -385,7 +385,7 @@ Sensors        =  {                                                             
                   },
                   'Vdc'           : {                                                                                                                 # DC-link voltage: resistive divider + RC + AMC1311, 0..500 V -> 0..3 V
                      'G'       : 3/500,                                                                                                               #? [V/V]    - Divider + amplifier gain
-                     'Vofs'    : 0,                                                                                                                   #? [V]      - Output at 0 V
+                     'Vofs'    : 0.02,                                                                                                                #? [V]      - Output at 0 V (amplifier offset; keeps the ADC off its 0 V clamp at start-up, calibrated out)
                      'BW'      : 5e3,                                                                                                                 #? [Hz]     - RC anti-alias filter corner
                      'BW2'     : 275e3,                                                                                                               #? [Hz]     - Isolated amplifier bandwidth
                      'err_g'   : 0,                                                                                                                   #? [/]      - Gain error

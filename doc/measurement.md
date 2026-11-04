@@ -39,6 +39,8 @@ v_out = clamp( Vofs + err_ofs + G·(1 + err_g)·x , Vmin , Vmax )     followed b
 
 `Sensors/HA` (Hall-effect current sensor) uses the same parameters as `A`, for Hall-type defaults.
 
+The Vdc sensor has `Vofs` = 20 mV. At start-up the DC link is at 0 V; with no offset, the reading sits exactly on the ADC's 0 V clamp and the solver stops on consecutive zero-crossings. The firmware calibration `MCU.Cal.Vdc.ofs` follows `Vofs`, so the measured Vdc is not changed.
+
 > [!IMPORTANT]
 > vac and iL are measured at the PFC terminals, not at the grid. If the current loop measures the grid current instead, it is closed through the EMI filter's LC resonances, which are close to its 8 kHz crossover, and the converter runs away.
 
