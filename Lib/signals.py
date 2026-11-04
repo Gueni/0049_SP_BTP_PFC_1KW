@@ -35,26 +35,60 @@ NL                                  = chr(10)
 MARK                                = ('\0', '', '', '')                        # trace reached the input port of the block being evaluated
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class _Env:
-    """Mask parameters of one block level: name -> expression, evaluated in the level above; ModelVars at the top."""
+    """Variables of one block level: mask parameters (name -> expression, evaluated in the level above) and values set
+    by initialization code (model InitializationCommands, block MaskInit). At the top: ModelVars, then the model's
+    initialization commands. Expressions use the MATLAB-like syntax of PLECS parameters ('[nV nI]', 'S.n', 'a(2)')."""
 
     OPS                             = {ast.Add: lambda a, b: a + b, ast.Sub: lambda a, b: a - b, ast.Mult: lambda a, b: a * b,
                                        ast.Div: lambda a, b: a / b, ast.Pow: lambda a, b: a ** b}
+    CMP                             = {ast.Eq: lambda a, b: a == b, ast.NotEq: lambda a, b: a != b, ast.Lt: lambda a, b: a < b,
+                                       ast.LtE: lambda a, b: a <= b, ast.Gt: lambda a, b: a > b, ast.GtE: lambda a, b: a >= b}
+    FUNCS                           = {'length': lambda v: len(v) if isinstance(v, (list, tuple, str)) else 1,
+                                       'numel': lambda v: len(v) if isinstance(v, (list, tuple)) else 1,
+                                       'sum': lambda v: sum(v) if isinstance(v, (list, tuple)) else v,
+                                       'max': lambda *v: max(v[0]) if len(v) == 1 and isinstance(v[0], (list, tuple)) else max(v),
+                                       'min': lambda *v: min(v[0]) if len(v) == 1 and isinstance(v[0], (list, tuple)) else min(v),
+                                       'double': float, 'int32': int, 'round': round, 'floor': math.floor, 'ceil': math.ceil,
+                                       'abs': abs, 'isfield': lambda s, f: isinstance(s, dict) and f in s}
 
     def __init__(self, variables, parent=None, modelvars=None):
         self.vars, self.parent      = variables, parent
+        self.values                 = {}                                        # set by initialization code of this level
         self.modelvars              = modelvars if parent is None else parent.modelvars
 
     def lookup(self, name):
+        if self.parent is None:                                                 # top: ModelVars override the init commands
+            return self.modelvars[name] if name in self.modelvars else self.values.get(name)
+        if name in self.values:
+            return self.values[name]
         if name in self.vars:
-            return self.parent.eval(self.vars[name]) if self.parent else self.modelvars.get(name)
-        return self.parent.lookup(name) if self.parent else self.modelvars.get(name)
+            return self.parent.eval(self.vars[name])
+        return self.parent.lookup(name)
+
+    @staticmethod
+    def matlab(expr):
+        """MATLAB-like expression -> Python syntax: [a b; c] -> [a, b, c], ~= -> !=, && / || / ~, ^ -> **."""
+        s                           = str(expr).strip()
+        s                           = s.replace('~=', '!=').replace('&&', ' and ').replace('||', ' or ').replace('^', '**')
+        s                           = re.sub(r'~(?!=)', ' not ', s)
+        out, depth                  = [], 0
+        for k, ch in enumerate(s):                                              # inside [ ]: spaces / ';' separate elements
+            depth                  += ch == '['
+            depth                  -= ch == ']'
+            if depth and ch == ';':
+                ch                  = ','
+            elif depth and ch in ' \t' and out and re.match(r"[\w)\]'.]", out[-1]) and \
+                    re.match(r"[\w(\['.]|-\S", s[k + 1:k + 3].lstrip()) and not re.match(r'\s*[-+*/,]\s', s[k:k + 3]):
+                ch                  = ','
+            out.append(ch)
+        return re.sub(r',\s*,+', ',', ''.join(out))
 
     def eval(self, expr):
-        """Value of a parameter expression ('1', 'PFC.SW.Config', 'n+1'); None if it cannot be evaluated."""
-        if expr is None:
+        """Value of a parameter expression ('1', 'PFC.SW.Config', '[nV nI]', 'n+1'); None if it cannot be evaluated."""
+        if expr is None or str(expr).strip() == '':
             return None
         try:
-            return self._node(ast.parse(str(expr).strip(), mode='eval').body)
+            return self._node(ast.parse(self.matlab(expr), mode='eval').body)
         except Exception:
             return None
 
@@ -62,15 +96,73 @@ class _Env:
         if isinstance(n, ast.Constant):
             return n.value
         if isinstance(n, ast.Name):
-            return self.lookup(n.id)
+            return {'true': True, 'false': False, 'pi': math.pi}.get(n.id, None) if n.id in ('true', 'false', 'pi') else self.lookup(n.id)
         if isinstance(n, ast.Attribute):
             v                       = self._node(n.value)
             return v.get(n.attr) if isinstance(v, dict) else getattr(v, n.attr)
+        if isinstance(n, (ast.List, ast.Tuple)):
+            out                     = []
+            for e in n.elts:                                                    # MATLAB [a b] concatenates vectors
+                v                   = self._node(e)
+                out                += list(v) if isinstance(v, (list, tuple)) else [v]
+            return out
+        if isinstance(n, ast.Call):
+            args                    = [self._node(a) for a in n.args]
+            if isinstance(n.func, ast.Name) and n.func.id in self.FUNCS and self.lookup(n.func.id) is None:
+                return self.FUNCS[n.func.id](*args)
+            v                       = self._node(n.func)                        # a(2), S.n(2): 1-based indexing
+            return v[int(args[0]) - 1] if isinstance(v, (list, tuple)) else v
         if isinstance(n, ast.BinOp) and type(n.op) in self.OPS:
             return self.OPS[type(n.op)](self._node(n.left), self._node(n.right))
-        if isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.USub):
-            return -self._node(n.operand)
+        if isinstance(n, ast.UnaryOp):
+            v                       = self._node(n.operand)
+            return -v if isinstance(n.op, ast.USub) else (not v) if isinstance(n.op, ast.Not) else v
+        if isinstance(n, ast.Compare) and len(n.ops) == 1 and type(n.ops[0]) in self.CMP:
+            return self.CMP[type(n.ops[0])](self._node(n.left), self._node(n.comparators[0]))
+        if isinstance(n, ast.BoolOp):
+            vals                    = [self._node(v) for v in n.values]
+            return all(vals) if isinstance(n.op, ast.And) else any(vals)
+        if isinstance(n, ast.IfExp):
+            return self._node(n.body) if self._node(n.test) else self._node(n.orelse)
         raise ValueError(n)
+
+    def run(self, code):
+        """Assignments of initialization code into self.values ('x = 2;', 'S.n = [1 2];', if/elseif/else/end blocks).
+        Statements it cannot evaluate are skipped; if-blocks with an unknown condition are skipped."""
+        if not code:
+            return self
+        lines                       = []
+        for raw in str(code).replace('\\n', '\n').splitlines():
+            line                    = re.sub(r"%.*$", '', raw).strip()            # MATLAB comment
+            lines                  += [p.strip() for p in re.split(r';(?![^\[]*\])', line) if p.strip()]
+        stack                       = []                                        # if-blocks: [taken?, any branch taken?, parent active?]
+        for st in lines:
+            active                  = all(s[0] for s in stack)
+            m                       = re.match(r'^(if|elseif)\s+(.+)$', st)
+            if m and m.group(1) == 'if':
+                cond                = bool(self.eval(m.group(2))) if active else False
+                stack.append([cond, cond])
+            elif m:                                                             # elseif
+                if stack:
+                    parent_active   = all(s[0] for s in stack[:-1])
+                    cond            = parent_active and not stack[-1][1] and bool(self.eval(m.group(2)))
+                    stack[-1]       = [cond, stack[-1][1] or cond]
+            elif st == 'else':
+                if stack:
+                    parent_active   = all(s[0] for s in stack[:-1])
+                    stack[-1]       = [parent_active and not stack[-1][1], True]
+            elif st == 'end':
+                stack and stack.pop()
+            elif active:
+                a                   = re.match(r'^([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*=(?!=)\s*(.+)$', st)
+                value               = self.eval(a.group(2)) if a else None
+                if value is not None:
+                    keys            = a.group(1).split('.')
+                    d               = self.values
+                    for k in keys[:-1]:
+                        d           = d.setdefault(k, {}) if isinstance(d.get(k, {}), dict) else d
+                    d[keys[-1]]     = value
+        return self
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class _Scope:
     """One schematic level while walking the model: the schematic, the block that owns it, its parameters, the level above."""
@@ -157,7 +249,8 @@ class SignalNames:
         self._trees, self._blocks   = {}, {}
         self.steps                  = []                                        # trace log (report)
         top                         = next((c for c in self.root['children'] if c['tag'] == 'Plecs'), self.root)
-        self.top                    = _Scope(next(iter(self.kids(top, 'Schematic')), top), env=_Env({}, None, self.modelvars), root=True)
+        env                         = _Env({}, None, self.modelvars).run(self.prop(top, 'InitializationCommands'))
+        self.top                    = _Scope(next(iter(self.kids(top, 'Schematic')), top), env=env, root=True)
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? .plecs files: tree of 'Tag { key value ... }' blocks
@@ -309,11 +402,15 @@ class SignalNames:
         if configs is None:
             return [None], self.kids(blk, 'Schematic')[:1], 0 if self.kids(blk, 'Schematic') else None
         names                       = [v for k, v in configs['props'] if k == 'Name']
-        idx                         = env.eval(self.param(comp, 'Configuration'))
-        try:
-            idx                     = int(idx) - 1 if 1 <= int(idx) <= len(names) else None
-        except (TypeError, ValueError):
-            idx                     = None
+        value                       = env.eval(self.param(comp, 'Configuration'))
+        if isinstance(value, str):                                              # configuration given by its name ('On')
+            low                     = [str(n).lower() for n in names]
+            idx                     = low.index(value.lower()) if value.lower() in low else None
+        else:
+            try:
+                idx                 = int(value) - 1 if 1 <= int(value) <= len(names) else None
+            except (TypeError, ValueError):
+                idx                 = None
         return names, self.kids(configs, 'Schematic'), idx
 
     def schematics(self, comp, scope, config_name=None):
@@ -328,7 +425,7 @@ class SignalNames:
         blk                         = self.content(comp)
         variables                   = {self.prop(p, 'Variable'): self.prop(p, 'Value') for p in self.kids(blk, 'Parameter')}
         variables.update({self.prop(p, 'Variable'): self.prop(p, 'Value') for p in self.kids(comp, 'Parameter')})
-        env                         = _Env(variables, scope.env)
+        env                         = _Env(variables, scope.env).run(self.prop(blk, 'MaskInit'))
         is_root                     = self.prop(comp, 'Type') == 'Reference' or bool(self.kids(blk, 'MaskProbe'))
         return [(n, _Scope(s, comp, env, scope, root=is_root)) for n, s in pairs]
 
@@ -479,15 +576,18 @@ class SignalNames:
                     out            += [(target, s, l, h) for l, h in entries] if entries else [(target, s, '', '')]
             return out
         if typ in ('SignalMux', 'Mux'):
-            width                   = self.param(comp, 'Width') or '1'
-            nums                    = [int(float(x)) for x in re.findall(r'-?\d+(?:\.\d+)?', width)]
-            widths                  = nums if width.strip().startswith('[') else [1] * (nums[0] if nums else 1)
+            widths                  = self._mux_widths(scope, comp)
+            self._log(depth, f"  Mux '{name}' Width '{self.param(comp, 'Width')}' -> {widths} (-1: taken from the traced input)")
             out                     = []
             for k, w in enumerate(widths):
                 sub                 = self._trace_input(scope, name, k + 2, stops, depth) or []
-                if w > 0 and len(sub) != w and MARK not in sub:
-                    base            = sub[0] if len(sub) == 1 else (name, f"In{k + 1}", '', '')
-                    sub             = [(base[0], base[1], f"{base[2]} {j}".strip(), base[3]) for j in range(1, w + 1)]
+                if w > 0 and len(sub) != w and MARK not in sub:                # declared width differs from the traced signals
+                    if len(sub) > 1:
+                        self._log(depth, f"  WARNING: Mux '{name}' input {k + 1}: width {w}, {len(sub)} signals traced (names kept, cut / padded)")
+                    if len(sub) == 1:                                           # one vector source: number its elements
+                        sub         = [(sub[0][0], sub[0][1], f"{sub[0][2]} {j}".strip(), sub[0][3]) for j in range(1, w + 1)]
+                    else:
+                        sub         = sub[:w] + [(name, f"In{k + 1}", str(j), '') for j in range(len(sub) + 1, w + 1)]
                 out                += sub
             return out
         if typ == 'Input':                                                      # port: continue outside the block
@@ -530,9 +630,32 @@ class SignalNames:
                     break                                                       # computed from its inputs: name it from outside
         return self._elementwise(scope, comp, stops, depth)
 
+    METERS                          = {'Voltmeter': 'Measured voltage', 'Ammeter': 'Measured current', 'Wattmeter': 'Measured power',
+                                       'Thermometer': 'Measured temperature', 'HeatFlowMeter': 'Measured heat flow'}
+
+    def _mux_widths(self, scope, comp):
+        """Width of each Mux input: the Width parameter evaluated (numbers, or names set in ModelVars / init code);
+        -1 where the width is not given (then the traced input decides)."""
+        expr                        = self.param(comp, 'Width') or '1'
+        value                       = scope.env.eval(expr)
+        n_in                        = max([int(t) - 1 for t in self._inputs(scope.sch, self.prop(comp, 'Name')) if t and t.isdigit()] or [0])
+        if isinstance(value, (list, tuple)):
+            widths                  = [int(v) if isinstance(v, (int, float)) else -1 for v in value]
+        elif isinstance(value, (int, float)):
+            widths                  = [-1] * int(value)                         # scalar: number of inputs
+        elif expr.strip().startswith('['):                                      # names that cannot be evaluated: count them
+            widths                  = [-1] * len([x for x in re.split(r'[\s,;]+', expr.strip()[1:-1]) if x])
+        else:
+            widths                  = [-1] * n_in
+        return widths + [-1] * (n_in - len(widths))
+
     def _elementwise(self, scope, comp, stops, depth):
-        """A block computed from its input: one input -> the input names with the block name in front; else its own name."""
+        """A block computed from its input: one input -> the input names with the block name in front; else its own name.
+        Meters (voltmeter, ammeter...) give their name and measured quantity."""
         name                        = self.prop(comp, 'Name')
+        typ                         = self.prop(comp, 'Type')
+        if typ in self.METERS:
+            return [(name, '', '', self.METERS[typ])]
         if self._inputs(scope.sch, name) == {'1'}:
             res                     = self._trace_input(scope, name, 1, stops, depth)
             if res == [MARK] or (res and MARK in res):
@@ -644,15 +767,34 @@ class SignalNames:
             out                    += ['no To File block found in the model']
         return NL.join(out)
 #?----------------------------------------------------------------------------------------------------------------------------------------
+#? Run this file (VS Code: Run Python File, the play button) to list the signals of a model. Set the paths here;
+#? command-line arguments, when given, replace them.
+#?----------------------------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    MODEL                           = r'D:\WORKSPACE\0049_SP_BTP_PFC_1KW\model\testmodel.plecs'   # model to read
+    LIB_DIRS                        = [r'D:\WORKSPACE\0000_libraries\Plecs']                   # folders of your libraries ([] = none)
+    CSV                             = None                                                   # result CSV to name its columns (None = names from the model)
+    VARS                            = None                                                   # ModelVars: dict, or path of a JSON file (None = values saved in the model)
+    DEBUG                           = True                                                   # also print libraries, To File blocks and the trace
+
+    import json
     import sys
-    args                            = [a for a in sys.argv[1:] if not a.startswith('--')]
-    if not args or not args[0].endswith('.plecs') and len(args) < 2:
-        sys.exit('usage: python signals.py <model.plecs> [lib_dir ...] [--debug]          (names from the model)\n'
-                 '       python signals.py <result.csv> <model.plecs> [lib_dir ...] [--debug]   (columns of a result CSV)')
-    csv, model, libs                = (None, args[0], args[1:]) if args[0].endswith('.plecs') else (args[0], args[1], args[2:])
-    if '--debug' in sys.argv:
-        print(SignalNames(model, libs).report(csv)); print()
-    names, units                    = SignalNames.read(csv, model, libs, units=True) if csv else SignalNames.from_model(model, libs, units=True)
+    argv                            = sys.argv[1:]
+    if argv:                                                                    # python signals.py [result.csv] model.plecs [lib_dir ...] [--vars f.json] [--debug]
+        DEBUG                       = '--debug' in argv
+        if '--vars' in argv:
+            k                       = argv.index('--vars')
+            VARS                    = argv[k + 1]
+            del argv[k:k + 2]
+        args                        = [a for a in argv if not a.startswith('--')]
+        CSV, MODEL, LIB_DIRS        = (None, args[0], args[1:]) if args[0].endswith('.plecs') else (args[0], args[1], args[2:])
+    if isinstance(VARS, str):
+        with open(VARS, encoding='utf-8') as f:
+            VARS                    = json.load(f)
+        VARS                        = VARS.get('ModelVars', VARS) if isinstance(VARS, dict) else {}
+    if DEBUG:
+        print(SignalNames(MODEL, LIB_DIRS, VARS).report(CSV)); print()
+    names, units                    = SignalNames.read(CSV, MODEL, LIB_DIRS, VARS, units=True) if CSV else \
+                                      SignalNames.from_model(MODEL, LIB_DIRS, VARS, units=True)
     for n, u in zip(names, units):
         print(f"{u:8s} {n}")

@@ -28,7 +28,7 @@ Plecs {
   AlgebraicLoopWithStateMachineMsg "3"
   AssertionAction "1"
   FixedPointDatatypeOverride "1"
-  InitializationCommands ""
+  InitializationCommands "% signal categories (widths of the export Mux)\nnRMS = 7;\nnSENS = 2;\n% logging: 1 = On, 2 = Off\nLog.mode = 1;\n"
   InitialState  "1"
   SystemState   ""
   TaskingMode   "1"
@@ -656,38 +656,7 @@ Plecs {
         Value         "2"
         Show          off
       }
-    }
-    Component {
-      Type          ToFile
-      Name          "To File"
-      Show          off
-      Position      [1195, 210]
-      Direction     right
-      Flipped       off
-      LabelPosition north
-      Parameter {
-        Variable      "Filename"
-        Value         "D:\\WORKSPACE\\0049_SP_BTP_PFC_1KW\\data\\timeseries\\R"
-"esults_20261027191326_1"
-        Show          off
-        Evaluate      off
-      }
-      Parameter {
-        Variable      "FileType"
-        Value         "1"
-        Show          off
-      }
-      Parameter {
-        Variable      "WriteSignalNames"
-        Value         "2"
-        Show          off
-      }
-      Parameter {
-        Variable      "SampleTime"
-        Value         "0"
-        Show          off
-      }
-    }
+    }
     Component {
       Type          PlecsProbe
       Name          "Probe"
@@ -751,6 +720,324 @@ Plecs {
         Type          Output
         Position      [19, 0]
         Direction     right
+      }
+    }
+    Component {
+      Type          Subsystem
+      Name          "Meas RMS"
+      Show          on
+      Position      [1000, 135]
+      Direction     right
+      Flipped       off
+      LabelPosition south
+      Frame         [-20, -15; 20, 15]
+      Terminal {
+        Type          Input
+        Position      [-20, 0]
+        Direction     left
+        Index         "1"
+      }
+      Schematic {
+        Location      [0, 26; 1000, 600]
+        ZoomFactor    1
+        SliderPosition [0, 0]
+        ShowBrowser   off
+        BrowserWidth  100
+        Component {
+          Type          Input
+          Name          "in"
+          Show          on
+          Position      [100, 100]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Parameter {
+            Variable      "Index"
+            Value         "1"
+            Show          off
+          }
+          Parameter {
+            Variable      "Width"
+            Value         "-1"
+            Show          off
+          }
+        }
+        Component {
+          Type          Goto
+          Name          "Goto RMS"
+          Show          on
+          Position      [200, 100]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Parameter {
+            Variable      "Tag"
+            Value         "SIG_RMS"
+            Show          off
+          }
+          Parameter {
+            Variable      "Visibility"
+            Value         "1"
+            Show          off
+          }
+        }
+        Connection {
+          Type          Signal
+          SrcComponent  "in"
+          SrcTerminal   1
+          DstComponent  "Goto RMS"
+          DstTerminal   1
+        }
+      }
+    }
+    Component {
+      Type          Subsystem
+      Name          "Sensors"
+      Show          on
+      Position      [1000, 600]
+      Direction     right
+      Flipped       off
+      LabelPosition south
+      Frame         [-20, -15; 20, 15]
+      Schematic {
+        Location      [0, 26; 1000, 600]
+        ZoomFactor    1
+        SliderPosition [0, 0]
+        ShowBrowser   off
+        BrowserWidth  100
+        Component {
+          Type          PlecsProbe
+          Name          "Probe sens"
+          Show          on
+          Position      [100, 100]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Probe {
+            Component     "Vm2"
+            Path          ""
+            Signals       {"Measured voltage"}
+          }
+          Probe {
+            Component     "C11"
+            Path          ""
+            Signals       {"Capacitor voltage"}
+          }
+        }
+        Component {
+          Type          Goto
+          Name          "Goto SENS"
+          Show          on
+          Position      [200, 100]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Parameter {
+            Variable      "Tag"
+            Value         "SIG_SENS"
+            Show          off
+          }
+          Parameter {
+            Variable      "Visibility"
+            Value         "1"
+            Show          off
+          }
+        }
+        Connection {
+          Type          Signal
+          SrcComponent  "Probe sens"
+          SrcTerminal   1
+          DstComponent  "Goto SENS"
+          DstTerminal   1
+        }
+      }
+    }
+    Component {
+      Type          ConfigurableSubsystem
+      Name          "Logging"
+      Show          on
+      Position      [1200, 350]
+      Direction     right
+      Flipped       off
+      LabelPosition south
+      Frame         [-30, -20; 30, 20]
+      SampleTime    "-1"
+      CodeGenDiscretizationMethod "2"
+      CodeGenTarget "Generic"
+      MaskIconFrame on
+      MaskIconOpaque off
+      MaskIconRotates on
+      TerminalNames { }
+      Location      [0, 26; 1000, 600]
+      ZoomFactor    1
+      SliderPosition [0, 0]
+      ShowBrowser   off
+      BrowserWidth  100
+      Configurations {
+        Name          "On"
+        Schematic {
+          Component {
+            Type          From
+            Name          "From RMS"
+            Show          on
+            Position      [100, 100]
+            Direction     right
+            Flipped       off
+            LabelPosition south
+            Parameter {
+              Variable      "Tag"
+              Value         "SIG_RMS"
+              Show          off
+            }
+            Parameter {
+              Variable      "Visibility"
+              Value         "1"
+              Show          off
+            }
+          }
+          Component {
+            Type          From
+            Name          "From SENS"
+            Show          on
+            Position      [100, 160]
+            Direction     right
+            Flipped       off
+            LabelPosition south
+            Parameter {
+              Variable      "Tag"
+              Value         "SIG_SENS"
+              Show          off
+            }
+            Parameter {
+              Variable      "Visibility"
+              Value         "1"
+              Show          off
+            }
+          }
+          Component {
+            Type          SignalMux
+            Name          "Mux export"
+            Show          on
+            Position      [250, 130]
+            Direction     right
+            Flipped       off
+            LabelPosition south
+            Parameter {
+              Variable      "Width"
+              Value         "[nRMS nSENS]"
+              Show          off
+            }
+          }
+          Component {
+            Type          Subsystem
+            Name          "Export"
+            Show          on
+            Position      [400, 130]
+            Direction     right
+            Flipped       off
+            LabelPosition south
+            Frame         [-25, -20; 25, 20]
+            TreatAsAtomicUnit on
+            Terminal {
+              Type          Input
+              Position      [-25, 0]
+              Direction     left
+              Index         "1"
+            }
+            Schematic {
+              Location      [0, 26; 1000, 600]
+              ZoomFactor    1
+              SliderPosition [0, 0]
+              ShowBrowser   off
+              BrowserWidth  100
+              Component {
+                Type          Input
+                Name          "signals"
+                Show          on
+                Position      [100, 100]
+                Direction     right
+                Flipped       off
+                LabelPosition south
+                Parameter {
+                  Variable      "Index"
+                  Value         "1"
+                  Show          off
+                }
+                Parameter {
+                  Variable      "Width"
+                  Value         "-1"
+                  Show          off
+                }
+              }
+              Component {
+                Type          ToFile
+                Name          "To File"
+                Show          on
+                Position      [250, 100]
+                Direction     right
+                Flipped       off
+                LabelPosition south
+                Parameter {
+                  Variable      "Filename"
+                  Value         "D:\\WORKSPACE\\0049_SP_BTP_PFC_1KW\\data\\timeseries\\Results_20261027191326_1"
+                  Show          off
+                  Evaluate      off
+                }
+                Parameter {
+                  Variable      "FileType"
+                  Value         "1"
+                  Show          off
+                }
+                Parameter {
+                  Variable      "WriteSignalNames"
+                  Value         "2"
+                  Show          off
+                }
+                Parameter {
+                  Variable      "SampleTime"
+                  Value         "0"
+                  Show          off
+                }
+              }
+              Connection {
+                Type          Signal
+                SrcComponent  "signals"
+                SrcTerminal   1
+                DstComponent  "To File"
+                DstTerminal   1
+              }
+            }
+          }
+          Connection {
+            Type          Signal
+            SrcComponent  "From RMS"
+            SrcTerminal   1
+            DstComponent  "Mux export"
+            DstTerminal   2
+          }
+          Connection {
+            Type          Signal
+            SrcComponent  "From SENS"
+            SrcTerminal   1
+            DstComponent  "Mux export"
+            DstTerminal   3
+          }
+          Connection {
+            Type          Signal
+            SrcComponent  "Mux export"
+            SrcTerminal   1
+            DstComponent  "Export"
+            DstTerminal   1
+          }
+        }
+        Name          "Off"
+        Schematic {
+        }
+      }
+      Parameter {
+        Variable      "Configuration"
+        Value         "Log.mode"
+        Show          off
       }
     }
     Connection {
@@ -1053,13 +1340,12 @@ Plecs {
       SrcTerminal   1
       DstComponent  "RMS Value"
       DstTerminal   1
-    }
+    }
     Connection {
       Type          Signal
       SrcComponent  "RMS Value"
       SrcTerminal   2
-      Points        [1115, 135; 1115, 210]
-      DstComponent  "To File"
+      DstComponent  "Meas RMS"
       DstTerminal   1
     }
     Annotation {
@@ -1079,4 +1365,3 @@ Plecs {
     } 
   }
 }
-DemoSignature "H1Cb6v2DsMzef6SUMQ2oOjex42H2nA/i/3k1nGcE8E8="

@@ -91,9 +91,11 @@ It reads the model and the libraries it references: the folders in `lib_dir` (on
 From a terminal:
 
 ```
-python signals.py model.plecs [lib_dir ...] [--debug]
-python signals.py result.csv model.plecs [lib_dir ...] [--debug]
+python signals.py model.plecs [lib_dir ...] [--vars vars.json] [--debug]
+python signals.py result.csv model.plecs [lib_dir ...] [--vars vars.json] [--debug]
 ```
+
+Variables (active configurations, Mux widths given as names such as `[nV nI]`) come from `ModelVars` (`--vars`: a JSON file of the ModelVars, or `{"ModelVars": {...}}`), the model's initialization commands and the blocks' mask initialization (`MaskInit`), in that order of priority. Without them, every configuration is tried and each Mux input takes the width of the signals traced into it.
 
 `--debug` lists the libraries found, the library blocks it could not find, every To File block with what feeds it, and the signals traced into it.
 
