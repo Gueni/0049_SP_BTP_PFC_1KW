@@ -13,23 +13,17 @@
 #? Purpose:     standalone copy of a PLECS model (<model>_std.plecs) that runs from PLECS alone:
 #?              - every library link broken (breaklink.py);
 #?              - every parameter set: the ModelVars written as actual values into the initialization commands.
-#?              Standard library only; needs breaklink.py next to it (copy both files to another project).
-#?                  path = Standalone.write('model.plecs', ModelVars, ['lib_dir'])
 #?
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
 #? Created:     11/04/2026
 #? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
-#? -------------------------------------------------------------------------------
 import math
-from   pathlib              import  Path
 
-try:
-    from   .breaklink       import  LinkBreaker                              # inside a package (from lib.standalone import ...)
-except ImportError:
-    from   breaklink        import  LinkBreaker                              # run as a script, breaklink.py next to it
-
+from   pathlib          import  Path
+from   breaklink        import  LinkBreaker                              # run as a script, breaklink.py next to it
+#? -------------------------------------------------------------------------------
 NL                                  = chr(10)
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class Standalone:
@@ -59,8 +53,7 @@ class Standalone:
         if not modelvars:
             return
         init                        = (lb.plecs.value('InitializationCommands') or '').replace('\\n', NL).strip()
-        code                        = NL.join(['% ---- parameters written by standalone.py (ModelVars as actual values) ----',
-                                               *cls.matlab(modelvars), ''])
+        code                        = NL.join(['',*cls.matlab(modelvars), ''])
         lb.plecs.set('InitializationCommands', cls.encode('InitializationCommands', (init + NL + NL if init else '') + code))
         print(f"{tag}: {len(modelvars)} ModelVars structs set as values")
 

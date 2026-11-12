@@ -92,12 +92,12 @@ if STANDALONE:
         print(f"standalone copy set to {std_label}")
         Standalone.write(prm.MODEL_PATH, std_vars, prm.PLECS_LIB_DIR)
 
-if RTBOX_MODEL or CODEGEN or RTBOX:                                                             # RT Box copy: always in 'rtbox' mode, whatever MODE is
-        rt_vars                        = copy.deepcopy(prm.ModelVars)
-        plc.Sweep.apply_configs(rt_vars, prm.MODES['rtbox'], prm.CONFIG_PATHS)
-        rt_label, rt_vars              = plc.Sweep.build_points(rt_vars, SWEEP, 'rtbox', paths, update_derived=Derived.update)[STD_POINT]
-        print(f"RT Box copy set to {rt_label}")
-        # rt_model                       = RTBoxModel.write(
+# if RTBOX_MODEL or CODEGEN or RTBOX:                                                             # RT Box copy: always in 'rtbox' mode, whatever MODE is
+#         rt_vars                        = copy.deepcopy(prm.ModelVars)
+#         plc.Sweep.apply_configs(rt_vars, prm.MODES['rtbox'], prm.CONFIG_PATHS)
+#         rt_label, rt_vars              = plc.Sweep.build_points(rt_vars, SWEEP, 'rtbox', paths, update_derived=Derived.update)[STD_POINT]
+#         print(f"RT Box copy set to {rt_label}")
+#         # rt_model                       = RTBoxModel.write(
         #                                         prm.MODEL_PATH                              ,
         #                                         rt_vars                                     ,
         #                                         prm.PLECS_LIB_DIR                           ,

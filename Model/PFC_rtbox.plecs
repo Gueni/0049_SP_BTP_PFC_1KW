@@ -277,7 +277,7 @@ Plecs {
           Type          Clock
           Name          "Clock"
           Show          off
-          Position      [595, 135]
+          Position      [80, 150]
           Direction     right
           Flipped       off
           LabelPosition west
@@ -286,7 +286,7 @@ Plecs {
           Type          Goto
           Name          "Goto2"
           Show          off
-          Position      [625, 135]
+          Position      [110, 150]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -303,205 +303,6 @@ Plecs {
           Parameter {
             Variable      "NoMatchingCounterpartAction"
             Value         "3"
-            Show          off
-          }
-        }
-        Component {
-          Type          Subsystem
-          Name          "ts"
-          Show          on
-          Position      [875, 275]
-          Direction     up
-          Flipped       on
-          LabelPosition none
-          Frame         [-30, -10; 30, 10]
-          TreatAsAtomicUnit on
-          SampleTime    "-1"
-          CodeGenDiscretizationMethod "2"
-          CodeGenTarget "Generic"
-          MaskDisplayLang "2"
-          MaskIconFrame on
-          MaskIconOpaque off
-          MaskIconRotates on
-          Terminal {
-            Type          Input
-            Position      [30, 0]
-            Direction     right
-            Index         "1"
-          }
-          Terminal {
-            Type          Output
-            Position      [-34, 0]
-            Direction     left
-            Index         "1"
-          }
-          Schematic {
-            Location      [744, 55; 1515, 733]
-            ZoomFactor    1.30957
-            SliderPosition [0, 0]
-            ShowBrowser   off
-            BrowserWidth  100
-            Component {
-              Type          Enable
-              Name          "Enable"
-              Show          off
-              Position      [215, 85]
-              Direction     right
-              Flipped       off
-              LabelPosition south
-              Parameter {
-                Variable      "Index"
-                Value         "1"
-                Show          on
-              }
-              Parameter {
-                Variable      "DataType"
-                Value         "10"
-                Show          off
-              }
-              Parameter {
-                Variable      "DataTypeOverflowMode"
-                Value         "1"
-                Show          off
-              }
-              Parameter {
-                Variable      "Width"
-                Value         "-1"
-                Show          off
-              }
-              Parameter {
-                Variable      "ShowOutput"
-                Value         "2"
-                Show          off
-              }
-            }
-            Component {
-              Type          Output
-              Name          "Out1"
-              Show          off
-              Position      [290, 85]
-              Direction     right
-              Flipped       off
-              LabelPosition south
-              Parameter {
-                Variable      "Index"
-                Value         "2"
-                Show          on
-              }
-              Parameter {
-                Variable      "OutputWhenDisabled"
-                Value         "1"
-                Show          off
-              }
-              Parameter {
-                Variable      "InitialOutput"
-                Value         "0"
-                Show          off
-              }
-              Parameter {
-                Variable      "Width"
-                Value         "-1"
-                Show          off
-              }
-            }
-            Connection {
-              Type          Signal
-              SrcComponent  "Enable"
-              SrcTerminal   1
-              DstComponent  "Out1"
-              DstTerminal   1
-            }
-          }
-        }
-        Component {
-          Type          ConstantRelationalOperator
-          Name          "Compare to\nConstant"
-          Show          off
-          Position      [820, 135]
-          Direction     left
-          Flipped       on
-          LabelPosition north
-          Frame         [-50, -10; 50, 10]
-          Parameter {
-            Variable      "Operator"
-            Value         "5"
-            Show          off
-          }
-          Parameter {
-            Variable      "Threshold"
-            Value         "Load.t_switch"
-            Show          off
-          }
-        }
-        Component {
-          Type          From
-          Name          "From2"
-          Show          off
-          Position      [735, 135]
-          Direction     right
-          Flipped       off
-          LabelPosition south
-          Parameter {
-            Variable      "Tag"
-            Value         "clk"
-            Show          off
-          }
-          Parameter {
-            Variable      "Visibility"
-            Value         "1"
-            Show          off
-          }
-          Parameter {
-            Variable      "NoMatchingCounterpartAction"
-            Value         "1"
-            Show          off
-          }
-        }
-        Component {
-          Type          Goto
-          Name          "Goto3"
-          Show          off
-          Position      [900, 135]
-          Direction     right
-          Flipped       off
-          LabelPosition south
-          Parameter {
-            Variable      "Tag"
-            Value         "tsw"
-            Show          off
-          }
-          Parameter {
-            Variable      "Visibility"
-            Value         "2"
-            Show          off
-          }
-          Parameter {
-            Variable      "NoMatchingCounterpartAction"
-            Value         "3"
-            Show          off
-          }
-        }
-        Component {
-          Type          From
-          Name          "From3"
-          Show          off
-          Position      [935, 275]
-          Direction     right
-          Flipped       on
-          LabelPosition south
-          Parameter {
-            Variable      "Tag"
-            Value         "tsw"
-            Show          off
-          }
-          Parameter {
-            Variable      "Visibility"
-            Value         "2"
-            Show          off
-          }
-          Parameter {
-            Variable      "NoMatchingCounterpartAction"
-            Value         "1"
             Show          off
           }
         }
@@ -1025,7 +826,7 @@ Plecs {
           Type          ConfigurableSubsystem
           Name          "Load"
           Show          on
-          Position      [805, 235]
+          Position      [815, 235]
           Direction     down
           Flipped       on
           LabelPosition south
@@ -69075,7 +68876,7 @@ Plecs {
           Type          From
           Name          "From4"
           Show          off
-          Position      [855, 200]
+          Position      [865, 200]
           Direction     left
           Flipped       off
           LabelPosition north
@@ -69473,6 +69274,99 @@ Plecs {
             Show          off
           }
         }
+        Component {
+          Type          Function
+          Name          "Fcn"
+          Show          off
+          Position      [700, 560]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Frame         [-20, -10; 20, 10]
+          Parameter {
+            Variable      "f(u)"
+            Value         "square(u[1]*u[2])/square(u[2])"
+            Show          off
+          }
+        }
+        Component {
+          Type          SignalMux
+          Name          "Mux"
+          Show          off
+          Position      [650, 560]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Parameter {
+            Variable      "Width"
+            Value         "2"
+            Show          off
+          }
+        }
+        Component {
+          Type          Constant
+          Name          "Constant3"
+          Show          off
+          Position      [595, 575]
+          Direction     right
+          Flipped       off
+          LabelPosition west
+          Frame         [-35, -10; 35, 10]
+          Parameter {
+            Variable      "Value"
+            Value         "Load.Pout"
+            Show          off
+          }
+          Parameter {
+            Variable      "DataType"
+            Value         "10"
+            Show          off
+          }
+        }
+        Component {
+          Type          Constant
+          Name          "Constant4"
+          Show          off
+          Position      [595, 545]
+          Direction     right
+          Flipped       off
+          LabelPosition west
+          Frame         [-35, -10; 35, 10]
+          Parameter {
+            Variable      "Value"
+            Value         "Load.Vout1"
+            Show          off
+          }
+          Parameter {
+            Variable      "DataType"
+            Value         "10"
+            Show          off
+          }
+        }
+        Component {
+          Type          Goto
+          Name          "Goto8"
+          Show          off
+          Position      [740, 560]
+          Direction     right
+          Flipped       off
+          LabelPosition south
+          Parameter {
+            Variable      "Tag"
+            Value         "Load1"
+            Show          off
+          }
+          Parameter {
+            Variable      "Visibility"
+            Value         "2"
+            Show          off
+          }
+          Parameter {
+            Variable      "NoMatchingCounterpartAction"
+            Value         "3"
+            Show          off
+          }
+        }
         Connection {
           Type          Wire
           SrcComponent  "Ground1"
@@ -69499,27 +69393,6 @@ Plecs {
           SrcComponent  "Clock"
           SrcTerminal   1
           DstComponent  "Goto2"
-          DstTerminal   1
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "From2"
-          SrcTerminal   1
-          DstComponent  "Compare to\nConstant"
-          DstTerminal   1
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "Compare to\nConstant"
-          SrcTerminal   2
-          DstComponent  "Goto3"
-          DstTerminal   1
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "From3"
-          SrcTerminal   1
-          DstComponent  "ts"
           DstTerminal   1
         }
         Connection {
@@ -69556,13 +69429,6 @@ Plecs {
           SrcTerminal   1
           DstComponent  "Load"
           DstTerminal   4
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "ts"
-          SrcTerminal   2
-          DstComponent  "Load"
-          DstTerminal   3
         }
         Connection {
           Type          HeatPipe
@@ -69757,6 +69623,34 @@ Plecs {
           DstComponent  "A"
           DstTerminal   1
         }
+        Connection {
+          Type          Signal
+          SrcComponent  "Mux"
+          SrcTerminal   1
+          DstComponent  "Fcn"
+          DstTerminal   1
+        }
+        Connection {
+          Type          Signal
+          SrcComponent  "Constant4"
+          SrcTerminal   1
+          DstComponent  "Mux"
+          DstTerminal   2
+        }
+        Connection {
+          Type          Signal
+          SrcComponent  "Constant3"
+          SrcTerminal   1
+          DstComponent  "Mux"
+          DstTerminal   3
+        }
+        Connection {
+          Type          Signal
+          SrcComponent  "Fcn"
+          SrcTerminal   2
+          DstComponent  "Goto8"
+          DstTerminal   1
+        }
         RectangleAnnotation {
           Position     [615, 260]
           Width        780
@@ -69767,11 +69661,6 @@ Plecs {
           PenAlpha     1
           BrushColor   10642217
           BrushAlpha   0
-        } 
-        Annotation {
-          Name          "<html><body>\n<p>make this a u function</p></body></h"
-"tml>"
-          Position      [885, 340]
         } 
         RectangleAnnotation {
           Position     [1100, 260]
@@ -69799,4 +69688,4 @@ Plecs {
     }
   }
 }
-DemoSignature "Qv5LP4G0UWcx0kOeeCP6Rdvii0uK7XvWYWFhR0zsa8Q="
+DemoSignature "iqvKABgaY/TQsteiG2fH8LkGRpwcFIOk8U5AQs3Phb8="
