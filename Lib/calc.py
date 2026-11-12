@@ -16,7 +16,6 @@
 #? Author:      Mohamed Gueni ( mohamedgueni@outlook.com)
 #?
 #? Created:     09/15/2024
-#? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
 import  numpy                       as      np
