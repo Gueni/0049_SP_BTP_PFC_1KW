@@ -9496,7 +9496,7 @@ Plecs {
                 Type          Signal
                 SrcComponent  "RMS Value"
                 SrcTerminal   2
-                Points        [1305, 205; 1285, 205; 1325, 205; 1325, 235]
+                Points        [1305, 205; 1325, 205; 1325, 235]
                 DstComponent  "Vrms min"
                 DstTerminal   1
               }
@@ -14486,4 +14486,4 @@ Plecs {
     } 
   }
 }
-DemoSignature "9kqvKyrPl3dKqG4OJc/U9zHBfAxnWbOULuJsLRYZ8yk="
+DemoSignature "BQdWgQk7Ikcydys5p2MJXIxtIQM2Ov4+is99T7I8bpk="
