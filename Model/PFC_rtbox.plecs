@@ -159,19 +159,19 @@ Plecs {
   ScriptsDialogSplitterPos "0"
   Schematic {
     Location      [0, 24; 1536, 774]
-    ZoomFactor    1.14436
+    ZoomFactor    1.30957
     SliderPosition [0, 0]
     ShowBrowser   off
     BrowserWidth  100
     Component {
       Type          Subsystem
-      Name          "Plant"
+      Name          "TPBPFC1PH"
       Show          on
-      Position      [610, 335]
+      Position      [340, 265]
       Direction     up
       Flipped       off
       LabelPosition south
-      Frame         [-130, -175; 130, 175]
+      Frame         [-100, -100; 100, 100]
       TreatAsAtomicUnit on
       SampleTime    "-1"
       TaskingMode "1"
@@ -184,25 +184,25 @@ Plecs {
       MaskIconRotates on
       Terminal {
         Type          Input
-        Position      [-130, -115]
+        Position      [-100, -65]
         Direction     left
         Index         "1"
       }
       Terminal {
         Type          Output
-        Position      [134, -155]
+        Position      [104, -65]
         Direction     right
         Index         "1"
       }
       Terminal {
         Type          Output
-        Position      [134, -115]
+        Position      [104, -25]
         Direction     right
         Index         "2"
       }
       Terminal {
         Type          Output
-        Position      [134, -75]
+        Position      [104, 15]
         Direction     right
         Index         "3"
       }
@@ -67873,7 +67873,7 @@ Plecs {
           Type          From
           Name          "From Vac_sns"
           Show          off
-          Position      [1065, 175]
+          Position      [970, 175]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -67897,7 +67897,7 @@ Plecs {
           Type          From
           Name          "From Vdc_sns"
           Show          off
-          Position      [1065, 245]
+          Position      [970, 245]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -67921,7 +67921,7 @@ Plecs {
           Type          From
           Name          "From Iin_sns"
           Show          off
-          Position      [1065, 315]
+          Position      [970, 315]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -68897,122 +68897,10 @@ Plecs {
           }
         }
         Component {
-          Type          Product
-          Name          "Product"
-          Show          off
-          Position      [725, 365]
-          Direction     up
-          Flipped       on
-          LabelPosition north
-          Parameter {
-            Variable      "IconShape"
-            Value         "1"
-            Show          off
-          }
-          Parameter {
-            Variable      "Inputs"
-            Value         "*/"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataType"
-            Value         "10"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataTypeOverflowMode"
-            Value         "1"
-            Show          off
-          }
-        }
-        Component {
-          Type          Product
-          Name          "Product1"
-          Show          off
-          Position      [855, 370]
-          Direction     up
-          Flipped       on
-          LabelPosition north
-          Parameter {
-            Variable      "IconShape"
-            Value         "1"
-            Show          off
-          }
-          Parameter {
-            Variable      "Inputs"
-            Value         "*/"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataType"
-            Value         "10"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataTypeOverflowMode"
-            Value         "1"
-            Show          off
-          }
-        }
-        Component {
-          Type          Math
-          Name          "Math"
-          Show          off
-          Position      [795, 365]
-          Direction     up
-          Flipped       off
-          LabelPosition south
-          Parameter {
-            Variable      "Operator"
-            Value         "1"
-            Show          off
-          }
-        }
-        Component {
-          Type          Constant
-          Name          "Constant2"
-          Show          off
-          Position      [640, 385]
-          Direction     right
-          Flipped       off
-          LabelPosition west
-          Frame         [-35, -10; 35, 10]
-          Parameter {
-            Variable      "Value"
-            Value         "Load.Pout"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataType"
-            Value         "10"
-            Show          off
-          }
-        }
-        Component {
-          Type          Constant
-          Name          "Constant1"
-          Show          off
-          Position      [640, 360]
-          Direction     right
-          Flipped       off
-          LabelPosition west
-          Frame         [-35, -10; 35, 10]
-          Parameter {
-            Variable      "Value"
-            Value         "Load.Vout1"
-            Show          off
-          }
-          Parameter {
-            Variable      "DataType"
-            Value         "10"
-            Show          off
-          }
-        }
-        Component {
           Type          Goto
           Name          "Goto7"
           Show          off
-          Position      [910, 370]
+          Position      [835, 370]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -69117,7 +69005,7 @@ Plecs {
           SrcComponent  "PLECSRTBoxLib/Analog Out1"
           Name          "AO Vac_sns"
           Show          on
-          Position      [1130, 175]
+          Position      [1035, 175]
           Direction     up
           Flipped       off
           LabelPosition south
@@ -69163,7 +69051,7 @@ Plecs {
           SrcComponent  "PLECSRTBoxLib/Analog Out1"
           Name          "AO Vdc_sns"
           Show          on
-          Position      [1130, 245]
+          Position      [1035, 245]
           Direction     up
           Flipped       off
           LabelPosition south
@@ -69209,7 +69097,7 @@ Plecs {
           SrcComponent  "PLECSRTBoxLib/Analog Out1"
           Name          "AO Iin_sns"
           Show          on
-          Position      [1130, 315]
+          Position      [1035, 315]
           Direction     up
           Flipped       off
           LabelPosition south
@@ -69260,7 +69148,7 @@ Plecs {
           LabelPosition east
           Parameter {
             Variable      "V"
-            Value         "1"
+            Value         "230"
             Show          off
           }
           Parameter {
@@ -69278,7 +69166,7 @@ Plecs {
           Type          Function
           Name          "Fcn"
           Show          off
-          Position      [700, 560]
+          Position      [795, 370]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -69293,7 +69181,7 @@ Plecs {
           Type          SignalMux
           Name          "Mux"
           Show          off
-          Position      [650, 560]
+          Position      [745, 370]
           Direction     right
           Flipped       off
           LabelPosition south
@@ -69307,7 +69195,7 @@ Plecs {
           Type          Constant
           Name          "Constant3"
           Show          off
-          Position      [595, 575]
+          Position      [690, 385]
           Direction     right
           Flipped       off
           LabelPosition west
@@ -69327,7 +69215,7 @@ Plecs {
           Type          Constant
           Name          "Constant4"
           Show          off
-          Position      [595, 545]
+          Position      [690, 355]
           Direction     right
           Flipped       off
           LabelPosition west
@@ -69340,30 +69228,6 @@ Plecs {
           Parameter {
             Variable      "DataType"
             Value         "10"
-            Show          off
-          }
-        }
-        Component {
-          Type          Goto
-          Name          "Goto8"
-          Show          off
-          Position      [740, 560]
-          Direction     right
-          Flipped       off
-          LabelPosition south
-          Parameter {
-            Variable      "Tag"
-            Value         "Load1"
-            Show          off
-          }
-          Parameter {
-            Variable      "Visibility"
-            Value         "2"
-            Show          off
-          }
-          Parameter {
-            Variable      "NoMatchingCounterpartAction"
-            Value         "3"
             Show          off
           }
         }
@@ -69538,50 +69402,6 @@ Plecs {
         }
         Connection {
           Type          Signal
-          SrcComponent  "Constant1"
-          SrcTerminal   1
-          DstComponent  "Product"
-          DstTerminal   3
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "Product"
-          SrcTerminal   1
-          DstComponent  "Math"
-          DstTerminal   2
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "Math"
-          SrcTerminal   1
-          DstComponent  "Product1"
-          DstTerminal   3
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "Constant2"
-          SrcTerminal   1
-          Points        [690, 385]
-          Branch {
-            Points        [690, 370]
-            DstComponent  "Product"
-            DstTerminal   2
-          }
-          Branch {
-            Points        [815, 385; 815, 375]
-            DstComponent  "Product1"
-            DstTerminal   2
-          }
-        }
-        Connection {
-          Type          Signal
-          SrcComponent  "Product1"
-          SrcTerminal   1
-          DstComponent  "Goto7"
-          DstTerminal   1
-        }
-        Connection {
-          Type          Signal
           SrcComponent  "PWM Capture"
           SrcTerminal   1
           DstComponent  "Gate bus"
@@ -69648,12 +69468,12 @@ Plecs {
           Type          Signal
           SrcComponent  "Fcn"
           SrcTerminal   2
-          DstComponent  "Goto8"
+          DstComponent  "Goto7"
           DstTerminal   1
         }
         RectangleAnnotation {
-          Position     [615, 260]
-          Width        780
+          Position     [570, 260]
+          Width        690
           Height       360
           CornerRadius 17
           Thickness    2
@@ -69663,7 +69483,7 @@ Plecs {
           BrushAlpha   0
         } 
         RectangleAnnotation {
-          Position     [1100, 260]
+          Position     [1005, 260]
           Width        170
           Height       360
           CornerRadius 17
@@ -69688,4 +69508,4 @@ Plecs {
     }
   }
 }
-DemoSignature "iqvKABgaY/TQsteiG2fH8LkGRpwcFIOk8U5AQs3Phb8="
+DemoSignature "SYVpShLoQ6PAZcYUf6YD/jkqAdgd28/rqVfe5LXy/+E="
