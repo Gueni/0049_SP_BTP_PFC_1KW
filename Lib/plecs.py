@@ -38,19 +38,31 @@ OUTPUT_KEY                     = 'ToFile'
 OUTPUT_FIELDS                  = ('sim_idx', 'utc_numeric', 'ToFile_path', 'logfile', 'output_html', 'Traces', 'Mat')
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class ResultPaths:
-    """Result folders of a project under data_dir (created if missing):
-    timeseries (simulation CSVs), mat (one <type>_<run>.csv matrix per result type of PMath.RESULT_TYPES), log, html, traces."""
+    """Result folders of one launch, under data_dir. One folder per result type, and in it one sub-folder per launch:
+        <data_dir>/<type>/<model>_<type>_<run_id>/        e.g. data/html/PFC_html_20261112171309/
+    Types: timeseries (simulation CSVs), mat (one <type>_<run>.csv matrix per result type of PMath.RESULT_TYPES), log, html,
+    traces, codegen (files written by PLECS Coder). The sweep folders are created here; codegen only when code is generated
+    (make('codegen')). Without model_name / run_id the files go straight into <data_dir>/<type>/."""
 
-    def __init__(self,data_dir):
+    TYPES                           =   ('timeseries', 'mat', 'log', 'html', 'traces', 'codegen')
+    SWEEP_TYPES                     =   ('timeseries', 'mat', 'log', 'html', 'traces')
+
+    def __init__(self,data_dir,model_name='',run_id=''):
         self.root                   =   Path(data_dir)
-        self.timeseries             =   self.root / "timeseries"
-        self.mat                    =   self.root / "mat"
-        self.log                    =   self.root / "log"
-        self.html                   =   self.root / "html"
-        self.traces                 =   self.root / "traces"
-        self.folders                =   [self.timeseries, self.mat, self.html, self.log, self.traces]
-        for folder in self.folders:
-            folder.mkdir(parents=True, exist_ok=True)
+        self.model_name             =   model_name
+        self.run_id                 =   run_id
+        for kind in self.TYPES:
+            sub                     =   f"{model_name}_{kind}_{run_id}" if model_name and run_id else ''
+            setattr(self, kind, self.root / kind / sub if sub else self.root / kind)
+        self.folders                =   [getattr(self, kind) for kind in self.SWEEP_TYPES]
+        for kind in self.SWEEP_TYPES:
+            self.make(kind)
+
+    def make(self,kind):
+        """Create the folder of this launch for one result type, return it."""
+        folder                      =   getattr(self, kind)
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class simpy:
     """PLECS session over XML-RPC: launch PLECS, load the model, set ModelVars, simulate / analyse, drive the scopes."""
@@ -354,7 +366,10 @@ class RTBox:
         target                      =   f"{self.modelname}/{self.codegen_target}"
         t0                          =   time.time()
         print(f"Generating code for {target} -> {self.output_dir}")
-        self.plecs.plecs.codegen(target, {'ModelVars': modelvars}, self.output_dir)
+        try:
+            self.plecs.plecs.codegen(target, {'ModelVars': modelvars} if modelvars else {}, self.output_dir)
+        except xmlrpc.client.Fault as fault:                                    # PLECS message without the XML-RPC traceback
+            raise RuntimeError(f"PLECS Coder could not generate code for {target}: {fault.faultString}") from None
         # The .elf base name depends on the model's Coder options, so take the one written by this build
         elfs                        =   [f for f in glob.glob(os.path.join(self.output_dir, '*.elf')) if os.path.getmtime(f) >= t0 - 1]
         self.elf                    =   max(elfs, key=os.path.getmtime) if elfs else None
