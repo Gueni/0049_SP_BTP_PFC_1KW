@@ -26,22 +26,21 @@ import   numpy       as       np
 #? -------------------------------------------------------------------------------
 
 #! All paths are resolved from this file's location, so the scripts work from any working directory.
-LIB_DIR        =  Path(__file__).resolve().parent                    # <repo>/lib
-ROOT_DIR       =  LIB_DIR.parent                                     # <repo>
-MODEL_NAME     =  "PFC"                                              # model name (without .plecs extension)
-MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
-MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"
-DATA_DIR       =  ROOT_DIR / "data"                                  # results: data/timeseries, data/mat, data/html, data/log, data/traces
-PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"      # PLECS libraries (Power, Switches ...): names of the probe signals
-RT_CONTROLLER  =  "MCU"                                              # RT Box copy (lib/rtbox.py): controller subsystem, stays outside the plant
-RT_OFFLINE     =  ("Scopes", "Data Export")                          # RT Box copy: top-level blocks outside the plant, not in the generated code
-F0_PATH        =  ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
-F0_OVERRIDES   =  {                                                  # waveform name keyword -> its own fundamental (first match wins)
-                  'HS1'             : ('CTRL', 'fsw'),                # fast leg switches at fsw
-                  'LS1'             : ('CTRL', 'fsw'),
-               }
-TSIM           =  0.4                                              # simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
-TSAVE          =  TSIM - 0.05                                      # time point at which the data is saved [s]
+LIB_DIR        =  Path(__file__).resolve().parent                                                                                                       #? [/]     - <repo>/lib
+ROOT_DIR       =  LIB_DIR.parent                                                                                                                        #? [/]     - <repo>
+MODEL_NAME     =  "PFC"                                                                                                                                 #? [/]     - model name (without .plecs extension)
+MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"                                                                                            #? [/]     - model path (used by the PLECS API)
+MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"                                                                                                  #? [/]     - schematic image of the model (used in the HTML report)
+DATA_DIR       =  ROOT_DIR / "data"                                                                                                                     #? [/]     - results: data/timeseries, data/mat, data/html, data/log, data/traces
+PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"                                                                                          #? [/]     - PLECS libraries (Power, Switches ...): names of the probe signals
+RT_CONTROLLER  =  "MCU"                                                                                                                                 #? [/]     - RT Box copy (lib/rtbox.py): controller subsystem, stays outside the plant
+RT_OFFLINE     =  ("Scopes", "Data Export")                                                                                                             #? [/]     - RT Box copy: top-level blocks outside the plant, not in the generated code
+F0_PATH        =  ('Grid', 'f')                                                                                                                         #? [/]     - fundamental of the harmonic plots (None = no harmonic plots)
+F0_OVERRIDES   =  {                                                                                                                                     #? [/]     - waveform name keyword -> its own fundamental (first match wins)
+                  'HS1'             : ('CTRL', 'fsw'),                                                                                                  #? [Hz]    - fast leg switches at fsw
+                  'LS1'             : ('CTRL', 'fsw'),   }                                                                                              #? [Hz]    - slow leg switches at fsw
+TSIM           =  0.4                                                                                                                                   #? [s]     - simulation time [s] (settled after ~75 ms: enable 1 ms + 50 ms soft start)
+TSAVE          =  TSIM - 0.05                                                                                                                           #? [s]     - time point at which the data is saved [s]
 #? -------------------------------------------------------------------------------
 
 Configs        =  {

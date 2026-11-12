@@ -29,7 +29,6 @@ from   lib.calc         import  Derived
 from   lib.process      import  PPlots
 from   lib.signals      import  SignalNames
 from   lib.standalone   import  Standalone
-from   lib.rtbox        import  RTBoxModel
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal' or 'real' sets all block configurations at once (vars.MODES); None = vars.Configs.
 MODE                                   = 'ideal'
@@ -68,7 +67,6 @@ model_directory                        = prm.MODEL_PATH.as_posix()
 paths                                  = plc.ResultPaths(prm.DATA_DIR)
 
 #? Code generation / RT Box settings (only used when CODEGEN or RTBOX is True)
-CODEGEN_TARGET                         = RTBoxModel.PLANT                                      # subsystem of <model>_rtbox.plecs with 'Enable code generation' checked
 CODEGEN_DIR                            = prm.DATA_DIR / "codegen"                              # where PLECS Coder writes the generated code / .elf
 RTBOX_URL                              = "http://192.168.0.10:9998/RPC2"                       # RT Box XML-RPC server (its IP, port 9998)
 RTBOX_SET                              = {}                                                    # Programmable Value blocks to write after start: {'Vref': [400]}
@@ -99,14 +97,14 @@ if RTBOX_MODEL or CODEGEN or RTBOX:                                             
         plc.Sweep.apply_configs(rt_vars, prm.MODES['rtbox'], prm.CONFIG_PATHS)
         rt_label, rt_vars              = plc.Sweep.build_points(rt_vars, SWEEP, 'rtbox', paths, update_derived=Derived.update)[STD_POINT]
         print(f"RT Box copy set to {rt_label}")
-        rt_model                       = RTBoxModel.write(
-                                                prm.MODEL_PATH                              ,
-                                                rt_vars                                     ,
-                                                prm.PLECS_LIB_DIR                           ,
-                                                controller  =   prm.RT_CONTROLLER           ,
-                                                offline     =   prm.RT_OFFLINE              ,
-                                                gate_width  =   rt_vars['RTBox']['gate_width']
-                                                )
+        # rt_model                       = RTBoxModel.write(
+        #                                         prm.MODEL_PATH                              ,
+        #                                         rt_vars                                     ,
+        #                                         prm.PLECS_LIB_DIR                           ,
+        #                                         controller  =   prm.RT_CONTROLLER           ,
+        #                                         offline     =   prm.RT_OFFLINE              ,
+        #                                         gate_width  =   rt_vars['RTBox']['gate_width']
+        #                                         )
 
 plcsim.rpc_connect()
 plcsim.load_model()
@@ -146,17 +144,17 @@ if SWEEP_EN:
                                 OPEN            =   False
                                 )
 
-if CODEGEN or RTBOX:
-        plcsim.server.plecs.load(str(rt_model))
-        rtb                            = plc.RTBox(
-                                                plcsim.server                       ,
-                                                modelname       =   rt_model.stem   ,
-                                                codegen_target  =   CODEGEN_TARGET  ,
-                                                output_dir      =   CODEGEN_DIR     ,
-                                                rtbox_url       =   RTBOX_URL
-                                                )
-        rtb.generate_code(rt_vars)
-        if RTBOX:
-                captured               = rtb.run(set_values=RTBOX_SET, capture_blocks=RTBOX_CAPTURE, timeout=RTBOX_TIMEOUT)
-                print(f"RT Box captured: {list(captured)}")
+# if CODEGEN or RTBOX:
+#         plcsim.server.plecs.load(str(rt_model))
+#         rtb                            = plc.RTBox(
+#                                                 plcsim.server                       ,
+#                                                 modelname       =   rt_model.stem   ,
+#                                                 codegen_target  =   CODEGEN_TARGET  ,
+#                                                 output_dir      =   CODEGEN_DIR     ,
+#                                                 rtbox_url       =   RTBOX_URL
+#                                                 )
+#         rtb.generate_code(rt_vars)
+        # if RTBOX:
+        #         captured               = rtb.run(set_values=RTBOX_SET, capture_blocks=RTBOX_CAPTURE, timeout=RTBOX_TIMEOUT)
+        #         print(f"RT Box captured: {list(captured)}")
 #?----------------------------------------------------------------------------------------------------------------------------------------
