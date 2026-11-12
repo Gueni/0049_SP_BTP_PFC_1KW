@@ -196,13 +196,14 @@ class simpy:
                     active      =   next((self._prop(c, 'Value') for c in child['children']
                                           if c['tag'] == 'Parameter' and self._prop(c, 'Variable') == 'Configuration'), None)
                     if active is not None and active.isdigit() and 1 <= int(active) <= len(schematics):
-                        selected =  [schematics[int(active) - 1]]
+                        selected =  [int(active) - 1]
                     elif active in names:
-                        selected =  [schematics[names.index(active)]]
+                        selected =  [names.index(active)]
                     else:                                                   # set by an expression: cannot tell offline
-                        selected =  schematics
-                    for schematic in selected:
-                        walk(schematic, parents + [esc(name)])
+                        selected =  range(len(schematics))
+                    for k in selected:                                      # PLECS paths include the configuration name
+                        config  =   names[k].strip('"').replace('\\n', chr(10)) if k < len(names) else ''
+                        walk(schematics[k], parents + [esc(name)] + ([esc(config)] if config else []))
                 else:
                     walk(child, parents + [esc(name)])
 

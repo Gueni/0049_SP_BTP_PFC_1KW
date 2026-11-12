@@ -50,13 +50,19 @@ class Standalone:
     def write(cls, model_path, modelvars=None, lib_dir=None, out=None, builtins=True):
         lb                          = LinkBreaker(model_path, lib_dir, builtins)
         out                         = Path(out) if out else lb.model.with_name(lb.model.stem + cls.SUFFIX + lb.model.suffix)
-        if modelvars:
-            init                    = (lb.plecs.value('InitializationCommands') or '').replace('\\n', NL).strip()
-            code                    = NL.join(['% ---- parameters written by standalone.py (ModelVars as actual values) ----',
-                                               *cls.matlab(modelvars), ''])
-            lb.plecs.set('InitializationCommands', cls.encode('InitializationCommands', (init + NL + NL if init else '') + code))
-            print(f"standalone: {len(modelvars)} ModelVars structs set as values")
+        cls.set_vars(lb, modelvars)
         return lb.save(out, tag='standalone')
+
+    @classmethod
+    def set_vars(cls, lb, modelvars, tag='standalone'):
+        """Write modelvars as values into the initialization commands of the model held by the LinkBreaker lb."""
+        if not modelvars:
+            return
+        init                        = (lb.plecs.value('InitializationCommands') or '').replace('\\n', NL).strip()
+        code                        = NL.join(['% ---- parameters written by standalone.py (ModelVars as actual values) ----',
+                                               *cls.matlab(modelvars), ''])
+        lb.plecs.set('InitializationCommands', cls.encode('InitializationCommands', (init + NL + NL if init else '') + code))
+        print(f"{tag}: {len(modelvars)} ModelVars structs set as values")
 
     #?------------------------------------------------------------------------------------------------------------------------------------
     #? ModelVars -> MATLAB / PLECS initialization commands

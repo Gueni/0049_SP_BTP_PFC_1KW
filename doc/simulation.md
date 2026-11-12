@@ -31,6 +31,7 @@ All block configurations are in `Configs` in [vars.py](../lib/vars.py), and `CON
 |---|---|---|---|---|
 | `'ideal'` | Pass | Ideal | Ideal | Ideal |
 | `'real'` | on (1PH) | Real | Real (physical equivalent circuit) | Real (charge-control recovery) |
+| `'rtbox'` | Pass | Ideal | sub-cycle average legs (Half Bridge power modules) | none |
 | `None` | as in `Configs` | as in `Configs` | as in `Configs` | as in `Configs` |
 
 Real mode also turns on the **warm start** (`Configs['WarmStart']` = 1): the run starts at the operating point instead of going through pre-charge and soft start. `Derived.update()` then sets:
@@ -47,18 +48,19 @@ The presets are the `MODES` dict in `vars.py`. Grid, PFC topology and load keep 
 | Flag | Effect |
 |---|---|
 | `STANDALONE` / `STD_POINT` | write the standalone copy `Model/PFC_std.plecs`, set to sweep point `STD_POINT` (see below) |
+| `RTBOX_MODEL` | write the RT Box copy `Model/PFC_rtbox.plecs`: plant for the RT Box 1 + controller ([rtbox.md](rtbox.md)) |
 | `SWEEP_EN` | run the simulation sweep |
 | `PARASIM` / `PARANUM` | run sweep points in parallel; `PARANUM = None` sizes the batches from the CPU threads |
 | `SCOPES` | scopes to clear/hold/save: `None` = every scope of the active configurations, `[]` = none |
 | `HOLD_TRACES` / `SAVE_TRACES` | keep and save the scope traces of every point |
-| `CODEGEN` | generate code with PLECS Coder (`CODEGEN_TARGET` = subsystem with code generation enabled) |
+| `CODEGEN` | build the plant of `PFC_rtbox.plecs` with PLECS Coder (`CODEGEN_TARGET` = `Plant`); needs the RT Box target support package |
 | `RTBOX` | upload and run the generated code on the RT Box at `RTBOX_URL` |
 
 ### Standalone copy (`lib/standalone.py`)
 
 `Model/PFC_std.plecs` runs from PLECS alone, without Python and without the libraries:
 
-- every library link is broken (`lib/breaklink.py`): each library block (user libraries and the PLECS built-in `Components/...`) is replaced by a copy of the block, with the mask values of the original reference;
+- every library link is broken (`lib/breaklink.py`): each library block (user libraries and the PLECS built-in `Components/...`) is replaced by a copy of the block, with the mask values of the original reference. Two kinds of links are kept, because a copy of them does not work: the PLECS power modules (`Components/Electrical/Power Modules/...`) and target support blocks (RT Box, STM32, C2000);
 - every parameter is set: the ModelVars of the chosen sweep point (mode, derived values and output paths included) are written as actual values in the model's initialization commands (Simulation > Simulation Parameters > Initialization).
 
 Open it in PLECS and press Start. It gives the same result as the Python run of that point (checked sample by sample in ideal and real mode). The file is regenerated on every run of `main.py` while `STANDALONE` is on, so do not edit it by hand. To File starts saving at `ToFile.tsave`, so a run shorter than that writes an empty CSV.

@@ -33,6 +33,8 @@ MODEL_PATH     =  ROOT_DIR / "Model" / f"{MODEL_NAME}.plecs"
 MODEL_IMG_PATH =  ROOT_DIR / "asset" / "schematic.png"
 DATA_DIR       =  ROOT_DIR / "data"                                  # results: data/timeseries, data/mat, data/html, data/log, data/traces
 PLECS_LIB_DIR  =  ROOT_DIR.parent / "0000_libraries" / "Plecs"      # PLECS libraries (Power, Switches ...): names of the probe signals
+RT_CONTROLLER  =  "MCU"                                              # RT Box copy (lib/rtbox.py): controller subsystem, stays outside the plant
+RT_OFFLINE     =  ("Scopes", "Data Export")                          # RT Box copy: top-level blocks outside the plant, not in the generated code
 F0_PATH        =  ('Grid', 'f')                                      # fundamental of the harmonic plots (None = no harmonic plots)
 F0_OVERRIDES   =  {                                                  # waveform name keyword -> its own fundamental (first match wins)
                   'HS1'             : ('CTRL', 'fsw'),                # fast leg switches at fsw
@@ -51,12 +53,12 @@ Configs        =  {
                   'Cy2'             : 2,                                                                                                                #? [/]     - EMI filter Cy2, Passives/C: 1 Ideal, 2 Real
                   'CMC'             : 2,                                                                                                                #? [/]     - EMI filter common-mode choke, Magnatic Components/Choke: 1 Ideal (L, Lm), 2 Real (+ R, Rm)
                   'DMC'             : 2,                                                                                                                #? [/]     - EMI filter differential-mode choke, Magnatic Components/Choke: 1 Ideal, 2 Real
-                  'PFC'             : 1,                                                                                                                #? [/]     - Power/PFC (and PFC CTRL): 1 TPB 2 Leg, 2 TPB 3 Leg, 3 TPB Diodes
+                  'PFC'             : 1,                                                                                                                #? [/]     - Power/PFC (and PFC CTRL): 1 TPB 2 Leg, 2 TPB 3 Leg, 3 TPB Diodes, 4 TPB 2 Leg Avg (sub-cycle average legs: RT Box)
                   'PFC_Choke'       : 2,                                                                                                                #? [/]     - PFC boost choke, Magnatic Components/Choke: 1 Ideal (L, Lm), 2 Real (+ R, Rm)
                   'PFC_SW'          : 2,                                                                                                                #? [/]     - PFC switches, Switches/FET: 1 Ideal, 2 Real (physical equivalent circuit)
                   'PFC_SW_BD'       : 2,                                                                                                                #? [/]     - Body diode of the Real switch, Switches/D: 1 Ideal, 2 Real (charge-control recovery)
                   'DCLink'          : 2,                                                                                                                #? [/]     - DC-link capacitor, Passives/C: 1 Ideal, 2 Real
-                  'Load'            : 1,                                                                                                                #? [/]     - Passives/Load: 1 RL, 2 RL Parallel
+                  'Load'            : 1,                                                                                                                #? [/]     - Passives/Load: 1 RL, 2 RL Parallel, 3 R (no inductor: for code generation)
                   'WarmStart'       : 0                                                                                                                 #? [/]     - Start: 0 from the pre-charge with soft start (TSIM), 1 at the operating point (Sim_param.warm_tSim)
                }
 Sim_param      =  {
@@ -90,10 +92,11 @@ CONFIG_PATHS   =  {
                }
 
 #! Modes: configuration presets selected in main.py with MODE (None = Configs as above). Grid, PFC topology and load
-#! keep their Configs value.
+#! keep their Configs value (rtbox sets the PFC and the load too).
 MODES          =  {
                   'ideal'           : {'AC_Filter': 3, 'Cx': 1, 'Cx1': 1, 'Cy1': 1, 'Cy2': 1, 'CMC': 1, 'DMC': 1, 'PFC_Choke': 1, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_BD': 1, 'WarmStart': 0},   #? [/]     - EMI filter Pass, ideal capacitors, chokes and switches (DC link starts at 0 V, see Derived): fastest
-                  'real'            : {'AC_Filter': 1, 'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'CMC': 2, 'DMC': 2, 'PFC_Choke': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_BD': 2, 'WarmStart': 1}    #? [/]     - EMI filter on, real capacitors and chokes, physical switches and body diodes (switching detail, slow)
+                  'real'            : {'AC_Filter': 1, 'Cx': 2, 'Cx1': 2, 'Cy1': 2, 'Cy2': 2, 'CMC': 2, 'DMC': 2, 'PFC_Choke': 2, 'DCLink': 2, 'PFC_SW': 2, 'PFC_SW_BD': 2, 'WarmStart': 1},    #? [/]     - EMI filter on, real capacitors and chokes, physical switches and body diodes (switching detail, slow)
+                  'rtbox'           : {'AC_Filter': 3, 'Cx': 1, 'Cx1': 1, 'Cy1': 1, 'Cy2': 1, 'CMC': 1, 'DMC': 1, 'PFC_Choke': 1, 'DCLink': 1, 'PFC_SW': 1, 'PFC_SW_BD': 1, 'WarmStart': 0, 'PFC': 4, 'Load': 3},   #? [/]     - as ideal, with sub-cycle average legs (Half Bridge power modules, duty-ratio gates) and the load R: the plant of the RT Box
                }
 ToFile         =  {
                   'Ts'              : 0,                                                                                                                #? [s]     - Sampling time for saving data
@@ -293,7 +296,7 @@ Switches       =  {
                }
 PFC_SWITCH     = 'C3M0021120K'                                                                                                                           # device of Switches used by the PFC stage
 PFC            =  {
-                  'Config'          : Configs['PFC'],                                                                                                    #? [/]     - Configuration of the PFC stage (also selects the PFC CTRL configuration)
+                  'Config'          : Configs['PFC'],                                                                                                    #? [/]     - Configuration of the PFC stage (PFC CTRL: Interleaved for 2, average current mode otherwise)
                   'Choke'           : {                                                                                                                  # boost choke (Magnatic Components/Choke)
                      'Config'       : Configs['PFC_Choke'],                                                                                              #? [/]      - 1 Ideal (L, Lm), 2 Real (+ R, Rm)
                      'L1'           : 240e-6,                                                                                                           #? [H]      - Inductance of the first choke winding (boost inductor; L_boost = 248 uH -> ~30 % p-p ripple at 85 Vrms, 80 kHz)
@@ -418,6 +421,14 @@ MCU            =  {                                                             
                      }
                   }
                }
+RTBox          =  {                                                                                                                                   # real-time plant on the RT Box 1 (lib/rtbox.py): the controller board reads the sensor voltages and drives the gates
+                  'Ts_min'        : 2.2e-6,                                                                                                           #? [s]      - Smallest step the RT Box can run the plant at (raise it if the RT Box reports overruns)
+                  'Ts'            : 2.5e-6,                                                                                                           #? [s]      - Discretization step of the plant: the PWM period divided by a whole number, >= Ts_min (set by Derived.update)
+                  'DI_gate'       : [0, 1, 2, 3],                                                                                                     #? [/]      - Digital inputs (PWM capture) of the gates HS1, LS1, HS2, LS2
+                  'AO_sns'        : [0, 1, 2],                                                                                                        #? [/]      - Analog outputs of the sensor voltages Vac, Vdc, Iin (0 ... 5 V range)
+                  'AO_max'        : MCU['ADC']['Vref'],                                                                                               #? [V]      - Upper limit of the analog outputs (ADC pins of the controller board)
+                  'gate_width'    : 6                                                                                                                 #? [/]      - Width of the gate bus g_PFC of the plant (HS1 LS1 HS2 LS2 HS3 LS3); the signals after DI_gate are 0
+               }
 #? -------------------------------------------------------------------------------
 
 ModelVars      =  {
@@ -431,7 +442,8 @@ ModelVars      =  {
                   'Load'                  :  Load                    ,
                   'Thermals'              :  Thermals                ,
                   'Sensors'               :  Sensors                 ,
-                  'MCU'                   :  MCU
+                  'MCU'                   :  MCU                     ,
+                  'RTBox'                 :  RTBox
                }
 AnalysisOpts   =  {
                   'system_period'         :  1/Grid['f']             ,

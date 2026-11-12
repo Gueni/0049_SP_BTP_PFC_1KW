@@ -11,6 +11,8 @@ Block `Load` (library `Passives/Load`), struct `Load`. The resistance is driven 
 | 3 | RL Var Parallel |
 | 4 | RL Var Series |
 | 5 | Var R |
+
+The library block `Passives/Load` itself has three configurations: `1` RL, `2` RL Parallel and `3` R. Configuration 3 is a variable resistor without inductor (controlled current source i = v / R); it is used by the `rtbox` mode because PLECS Coder does not accept the variable resistor with series inductor ([rtbox.md](rtbox.md)).
 | 6 | Var I |
 | 7 | Short |
 | 8 | Open |

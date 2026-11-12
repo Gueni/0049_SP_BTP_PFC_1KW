@@ -29,15 +29,16 @@ from   pathlib              import  Path
 
 NL                                  = chr(10)
 #?----------------------------------------------------------------------------------------------------------------------------------------
-def break_links(model_path, lib_dir=None, out=None, builtins=True):
+def break_links(model_path, lib_dir=None, out=None, builtins=True, keep=None):
     """Break every library link of model_path and save the model; returns the saved path.
 
     model_path  .plecs model (text format)
     lib_dir     folder, or list of folders, of the user libraries (the model folder is always searched)
     out         output file (default <model>_nolink.plecs next to the model; pass model_path to overwrite the model)
     builtins    True: also break the links to the PLECS built-in library (Components/...)
+    keep        links left as they are: beginnings of their library paths (None = LinkBreaker.KEEP)
     """
-    return LinkBreaker(model_path, lib_dir, builtins).save(out)
+    return LinkBreaker(model_path, lib_dir, builtins, keep).save(out)
 #?----------------------------------------------------------------------------------------------------------------------------------------
 class PlecsBlock:
     """'Tag {' block of a .plecs file, kept as text: items are ['prop', key, raw lines] or ['block', PlecsBlock], in file order."""
@@ -97,12 +98,8 @@ class PlecsBlock:
         return out + [f"{pad}}}"]
 
     @staticmethod
-    def load(path):
-        """Root block of a .plecs file, and its line ending."""
-        data                        = Path(path).read_bytes()
-        if data[:2] == b'PK' or b'\x00' in data[:4096]:
-            raise ValueError(f"{path}: binary or zipped file, not a PLECS text model (save it as a plain .plecs model)")
-        text                        = data.decode('utf-8-sig', errors='replace')
+    def parse(text):
+        """Root block of .plecs text (a whole file, or a few 'Component { ... }' blocks written by hand)."""
         root                        = PlecsBlock(None)
         stack, last                 = [root], None
         for line in text.splitlines():
@@ -121,6 +118,16 @@ class PlecsBlock:
             else:
                 last                = ['prop', s.split()[0], [s]]
                 stack[-1].items.append(last)
+        return root
+
+    @staticmethod
+    def load(path):
+        """Root block of a .plecs file, and its line ending."""
+        data                        = Path(path).read_bytes()
+        if data[:2] == b'PK' or b'\x00' in data[:4096]:
+            raise ValueError(f"{path}: binary or zipped file, not a PLECS text model (save it as a plain .plecs model)")
+        text                        = data.decode('utf-8-sig', errors='replace')
+        root                        = PlecsBlock.parse(text)
         if not root.kids('Plecs'):
             raise ValueError(f"{path}: does not start like a PLECS model ('Plecs {{')")
         return root, '\r\n' if '\r\n' in text else '\n'
@@ -138,8 +145,10 @@ class LinkBreaker:
                                        'C:/Program Files/Plexim/PLECS*', 'C:/Program Files (x86)/Plexim/PLECS*', 'C:/ProgramData/Plexim/PLECS*',
                                        'C:/Plexim/PLECS*', '/Applications/PLECS*', '~/Plexim/PLECS*', '/opt/plexim/plecs*']   # PLECS installations
     MAX_DEPTH                       = 40                                         # library blocks inside library blocks
+    KEEP                            = ('Components/Electrical/Power Modules/',   # PLECS power modules: a copy does not load (unconnected terminals inside)
+                                       'PLECSRTBoxLib/', 'STM32_Lib/', 'TIC2000_Lib/')   # target support blocks: must stay linked to their package
 
-    def __init__(self, model_path, lib_dir=None, builtins=True):
+    def __init__(self, model_path, lib_dir=None, builtins=True, keep=None):
         self.model                  = Path(model_path)
         dirs                        = [lib_dir] if isinstance(lib_dir, (str, Path)) else list(lib_dir or [])
         self.lib_files              = {}
@@ -147,6 +156,8 @@ class LinkBreaker:
             for f in sorted(Path(d).glob('*.plecs')):
                 self.lib_files.setdefault(f.stem.lower(), f)
         self.builtins               = builtins
+        self.keep                   = tuple(self.KEEP if keep is None else keep)
+        self.kept                   = 0
         self.trees                  = {}
         self.missing                = set()
         self.root, self.newline     = PlecsBlock.load(self.model)
@@ -158,7 +169,7 @@ class LinkBreaker:
         out                         = Path(out) if out else self.model.with_name(self.model.stem + self.SUFFIX + self.model.suffix)
         self.plecs.set('Name', [f'Name          "{out.stem}"'])
         self.root.save(out, self.newline)
-        print(f"{tag}: {out}  ({self.broken} library links broken)")
+        print(f"{tag}: {out}  ({self.broken} library links broken" + (f", {self.kept} kept: PLECS power modules / target blocks)" if self.kept else ")"))
         if self.missing:
             print(f"{tag}: library block not found, kept as a link: {', '.join(sorted(self.missing))}")
         return out
@@ -217,6 +228,9 @@ class LinkBreaker:
     def _broken(self, ref, depth):
         """Copy of the library block of the Reference ref, with the name, place and mask values of ref."""
         src                         = ref.value('SrcComponent') or ''
+        if src.startswith(self.keep):
+            self.kept              += 1
+            return None
         lib                         = self.library_block(src) if depth < self.MAX_DEPTH else None
         if lib is None:
             if not src.startswith('Components/') or self.builtins:

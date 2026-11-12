@@ -20,6 +20,7 @@
 #? Licence:     Refer to the LICENSE file
 #? -------------------------------------------------------------------------------
 #? -------------------------------------------------------------------------------
+import copy
 import time
 
 from   lib              import  plecs   as  plc
@@ -28,6 +29,7 @@ from   lib.calc         import  Derived
 from   lib.process      import  PPlots
 from   lib.signals      import  SignalNames
 from   lib.standalone   import  Standalone
+from   lib.rtbox        import  RTBoxModel
 #?----------------------------------------------------------------------------------------------------------------------------------------
 #? Model depth: 'ideal' or 'real' sets all block configurations at once (vars.MODES); None = vars.Configs.
 MODE                                   = 'ideal'
@@ -38,18 +40,19 @@ MODE                                   = 'ideal'
 #? the switch temperatures) are set by Derived.update in calc.py.
 SWEEP                                  = {
                                           'Vin'           : [230],
-                                          'Load.Pout'     : [100e3, 1e3],
-                                          'fsw'           : [100e3, 150e3],
+                                          'Load.Pout'     : [1e3],
+                                          'fsw'           : [150e3],
                                           'Choke.L1'      : [140e-6],
                                           'DCLink.Cap_s'  : [47e-6],
                                           'T_amb'         : [25],
                                          }
 
-#? What to run (in this order): the sweep, then code generation, then the RT Box (RTBOX implies CODEGEN).
+#? What to run (in this order): the standalone copies, the sweep, then code generation, then the RT Box (RTBOX implies CODEGEN).
 STANDALONE                             = True                                                  # write Model/<model>_std.plecs: no library links, parameters of sweep point STD_POINT
 STD_POINT                              = 0                                                     # index of the sweep point the standalone copy is set to
+RTBOX_MODEL                            = True                                                  # write Model/<model>_rtbox.plecs: plant for the RT Box ('rtbox' mode, sweep point STD_POINT) + controller
 SWEEP_EN                               = True                                                  # run the simulation sweep
-CODEGEN                                = False                                                 # generate code (PLECS Coder) with the base ModelVars
+CODEGEN                                = False                                                 # generate the RT Box code of the plant from <model>_rtbox.plecs (needs the RT Box target support package)
 RTBOX                                  = False                                                 # upload + run the generated code on the RT Box
 SCOPES                                 = None                                                  # scope names to clear/hold/save: None = all scopes in the model, [] = none
 HOLD_TRACES                            = True                                                  # hold traces after each simulation point, to save them all at the end
@@ -65,7 +68,7 @@ model_directory                        = prm.MODEL_PATH.as_posix()
 paths                                  = plc.ResultPaths(prm.DATA_DIR)
 
 #? Code generation / RT Box settings (only used when CODEGEN or RTBOX is True)
-CODEGEN_TARGET                         = ""                                                    # subsystem with 'Enable code generation' checked, e.g. "PFC CTRL"
+CODEGEN_TARGET                         = RTBoxModel.PLANT                                      # subsystem of <model>_rtbox.plecs with 'Enable code generation' checked
 CODEGEN_DIR                            = prm.DATA_DIR / "codegen"                              # where PLECS Coder writes the generated code / .elf
 RTBOX_URL                              = "http://192.168.0.10:9998/RPC2"                       # RT Box XML-RPC server (its IP, port 9998)
 RTBOX_SET                              = {}                                                    # Programmable Value blocks to write after start: {'Vref': [400]}
@@ -90,6 +93,20 @@ if STANDALONE:
         std_label, std_vars            = plc.Sweep.build_points(prm.ModelVars, SWEEP, 'std', paths, update_derived=Derived.update)[STD_POINT]
         print(f"standalone copy set to {std_label}")
         Standalone.write(prm.MODEL_PATH, std_vars, prm.PLECS_LIB_DIR)
+
+if RTBOX_MODEL or CODEGEN or RTBOX:                                                             # RT Box copy: always in 'rtbox' mode, whatever MODE is
+        rt_vars                        = copy.deepcopy(prm.ModelVars)
+        plc.Sweep.apply_configs(rt_vars, prm.MODES['rtbox'], prm.CONFIG_PATHS)
+        rt_label, rt_vars              = plc.Sweep.build_points(rt_vars, SWEEP, 'rtbox', paths, update_derived=Derived.update)[STD_POINT]
+        print(f"RT Box copy set to {rt_label}")
+        rt_model                       = RTBoxModel.write(
+                                                prm.MODEL_PATH                              ,
+                                                rt_vars                                     ,
+                                                prm.PLECS_LIB_DIR                           ,
+                                                controller  =   prm.RT_CONTROLLER           ,
+                                                offline     =   prm.RT_OFFLINE              ,
+                                                gate_width  =   rt_vars['RTBox']['gate_width']
+                                                )
 
 plcsim.rpc_connect()
 plcsim.load_model()
@@ -130,14 +147,15 @@ if SWEEP_EN:
                                 )
 
 if CODEGEN or RTBOX:
+        plcsim.server.plecs.load(str(rt_model))
         rtb                            = plc.RTBox(
                                                 plcsim.server                       ,
-                                                modelname       =   modelname       ,
+                                                modelname       =   rt_model.stem   ,
                                                 codegen_target  =   CODEGEN_TARGET  ,
                                                 output_dir      =   CODEGEN_DIR     ,
                                                 rtbox_url       =   RTBOX_URL
                                                 )
-        rtb.generate_code(prm.ModelVars)
+        rtb.generate_code(rt_vars)
         if RTBOX:
                 captured               = rtb.run(set_values=RTBOX_SET, capture_blocks=RTBOX_CAPTURE, timeout=RTBOX_TIMEOUT)
                 print(f"RT Box captured: {list(captured)}")

@@ -2,7 +2,7 @@
 
 ![Totem-pole PFC stage](../asset/PFC_stage.png)
 
-Block `PFC` (library `Power/PFC`), struct `PFC`. Configurations: `1 TPB` (used), `2 PFC`, `3 PFC D`, `4 Pass`.
+Block `PFC` (library `Power/PFC`), struct `PFC`. Configurations: `1` TPB 2 Leg (used), `2` TPB 3 Leg, `3` TPB Diodes, `4` TPB 2 Leg Avg (legs as Half Bridge power modules in sub-cycle average mode, for the RT Box: [rtbox.md](rtbox.md)).
 
 The boost choke sits between the AC input and the switch node of the **fast leg** (HS1/LS1, PWM at fsw). The **slow leg** (HS2/LS2) switches at line frequency and connects the other AC line to the DC rails according to the line polarity, replacing the diode bridge. `Cout` is the high-frequency decoupling capacitor on the DC bus.
 
@@ -10,7 +10,7 @@ Gate signals for HS3/LS3 exist for other configurations and stay off in `TPB`.
 
 | Key | Value | Meaning |
 |---|---|---|
-| `Config` | 1 | TPB (also selects the `PFC CTRL` configuration) |
+| `Config` | 1 | TPB 2 Leg (`PFC CTRL` uses its Interleaved configuration for 2, average current mode otherwise) |
 | `Choke` | see below | boost choke |
 | `Cout` | 10 µF | DC-bus HF decoupling |
 | `SW` | copy of `Switches[PFC_SWITCH]` | the six switches, see [switches.md](switches.md) |

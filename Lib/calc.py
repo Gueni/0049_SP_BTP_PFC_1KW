@@ -157,6 +157,9 @@ class Derived:
         Ld['R']                    = Ctrl['Vref']**2 / Ld['Pout']
         Sw['Tamb']                 = Sw['T_init'] = mdlvar['Thermals']['T_amb']              # switch ambient / initial junction temperature
         mdlvar['MCU']['ADC']['Ts'] = 1 / Ctrl['fsw']                                         # ADC samples once per PWM period
+        if 'RTBox' in mdlvar:                                                                # RT Box plant: whole number of steps per PWM period
+            RT                     = mdlvar['RTBox']
+            RT['Ts']               = 1 / (Ctrl['fsw'] * max(1, int(1 / (Ctrl['fsw'] * RT['Ts_min']) + 1e-9)))
         Sim                        = mdlvar['Sim_param']
         if Sim['warm_start']:                                                                # start at the operating point, a few line cycles
             Sim['tSim']            = Sim['warm_tSim']

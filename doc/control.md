@@ -2,7 +2,7 @@
 
 ![PFC controller](../asset/ctrl.png)
 
-The controller is the `PFC CTRL` configurable subsystem inside the `MCU` block. It is selected with the same index as the power stage (`PFC.Config`), so configuration 1 runs the **TPB PFC** controller: **average current mode control** of a non-interleaved totem-pole PFC.
+The controller is the `PFC CTRL` configurable subsystem inside the `MCU` block. Its configuration follows the power stage (`1 + (PFC.Config == 2)`): the Interleaved controller for the 3-leg stage, and for every other stage the **TPB PFC** controller: **average current mode control** of a non-interleaved totem-pole PFC.
 
 There is a second configuration, `Interleaved`, which this design does not use.
 

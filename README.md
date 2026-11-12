@@ -33,6 +33,7 @@ The signal path is **grid → EMI filter → PFC stage → DC link → load**. S
 | DC link | [doc/dc_link.md](doc/dc_link.md) |
 | Load | [doc/load.md](doc/load.md) |
 | Simulation, model modes, sweep, results, parameter structs | [doc/simulation.md](doc/simulation.md) |
+| Hardware in the loop: plant on the RT Box 1, controller on its own board | [doc/rtbox.md](doc/rtbox.md) |
 
 ## Quick start
 
